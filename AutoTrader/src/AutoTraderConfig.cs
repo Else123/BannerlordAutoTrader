@@ -11,7 +11,8 @@ namespace AutoTrader
     {
         private static PlatformFilePath _configFile;
 
-        public static string AutoTraderGameVersion { get; } = "v1.4.6";
+        // This fork is built and tested against v1.4.7 (War Sails).
+        public static string AutoTraderGameVersion { get; } = "v1.4.7";
 
         public static int BuyThresholdValue { get; set; } = 90;
         public static int SellThresholdValue { get; set; } = 100;

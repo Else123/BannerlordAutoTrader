@@ -27,6 +27,7 @@ namespace AutoTrader
         // Speed-aware mount trading: per-run, per-category mount budgets
         // (see ComputeMountBudgets / SpeedTrading.PartySpeedAdvisor).
         private int _buyRegularBudget;
+        private int _buyPackBudget;
         private int _sellRegularBudget;
         private int _sellWarBudget;
         private int _sellNobleBudget;
@@ -133,6 +134,7 @@ namespace AutoTrader
         private void ComputeMountBudgets()
         {
             _buyRegularBudget = 0;
+            _buyPackBudget = 0;
             _sellRegularBudget = 0;
             _sellWarBudget = 0;
             _sellNobleBudget = 0;
@@ -168,9 +170,11 @@ namespace AutoTrader
                 AutoTraderConfig.SellNobleMountsValue,
                 AutoTraderConfig.ManagePackAnimalHerdValue && !AutoTraderConfig.ProtectPackAnimalsValue,
                 AutoTraderConfig.ManageLivestockHerdValue,
-                AutoTraderConfig.KeepLivestockReserveValue);
+                AutoTraderConfig.KeepLivestockReserveValue,
+                AutoTraderConfig.UseInventorySpaceValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
             _buyRegularBudget = recommendation.BuyRegular;
+            _buyPackBudget = recommendation.BuyPack;
             _sellRegularBudget = recommendation.SellRegular;
             _sellWarBudget = recommendation.SellWar;
             _sellNobleBudget = recommendation.SellNoble;
@@ -499,9 +503,16 @@ namespace AutoTrader
                 + DescribeMountCategory() + "] price=" + buyoutPrice + " buyRegularBudget=" + _buyRegularBudget);
             if (_logicConnector.IsPackAnimal())
             {
-                if (AutoTraderSpecialRules.CheckBuyHorsesRules(_logicConnector, buyoutPrice, _availablePlayerGold))
-                    return CheckBasicBuyRequirements(amount, buyoutPrice);
-                AutoTraderHelpers.PrintDebugMessage(" - do not buy because we need no additional pack animals");
+                // Need-based: only while the cargo does not fit and the herd still has headroom.
+                // (The legacy rule here was unbounded - it compared the party size against the
+                // LIVESTOCK count, so it always said yes and bought hundreds of mules.)
+                if (AutoTraderConfig.BuyHorsesValue && _buyPackBudget > 0
+                    && CheckBasicBuyRequirements(amount, buyoutPrice))
+                {
+                    _buyPackBudget--;
+                    return true;
+                }
+                AutoTraderHelpers.PrintDebugMessage(" - do not buy pack animal (cargo fits, or herd limit reached)");
                 return false;
             }
 

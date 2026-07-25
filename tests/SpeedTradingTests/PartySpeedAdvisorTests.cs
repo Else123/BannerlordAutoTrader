@@ -120,6 +120,47 @@ namespace SpeedTradingTests
         }
 
         [Fact]
+        public void PackAnimals_AreNotBoughtWhileTheCargoFits()
+        {
+            var advisor = new PartySpeedAdvisor(cargoUtilizationPercent: 90);
+            // 1000 of 5000 capacity used - no shortfall, so no mules regardless of headroom.
+            var plan = advisor.Recommend(Snapshot(members: 320, foot: 0, pack: 10,
+                weight: 1000f, capacity: 5000f));
+            Assert.Equal(0, plan.BuyPack);
+        }
+
+        [Fact]
+        public void PackAnimals_AreBoughtOnlyForTheActualShortfall()
+        {
+            var advisor = new PartySpeedAdvisor(cargoUtilizationPercent: 100);
+            // 250 over capacity, each pack animal carries 100 -> 3 cover it.
+            var plan = advisor.Recommend(Snapshot(members: 320, foot: 0, pack: 10,
+                weight: 5250f, capacity: 5000f));
+            Assert.Equal(3, plan.BuyPack);
+        }
+
+        [Fact]
+        public void PackAnimals_AreCappedByTheHerdHeadroom()
+        {
+            var advisor = new PartySpeedAdvisor(cargoUtilizationPercent: 100);
+            // Huge shortfall, but pack + livestock may not exceed the 100 members: 90 + 5 -> 5 left.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 0, pack: 90, livestock: 5,
+                weight: 100000f, capacity: 1000f));
+            Assert.Equal(5, plan.BuyPack);
+        }
+
+        [Fact]
+        public void RidableSurplus_IsSoldEvenWhenOverburdened()
+        {
+            var advisor = new PartySpeedAdvisor();
+            // Overburdened (weight > capacity): the surplus mounts are pure herd burden beyond the
+            // foot soldiers, so they must still go - otherwise the party can never recover.
+            var plan = advisor.Recommend(Snapshot(members: 320, foot: 158, regular: 489,
+                weight: 70000f, capacity: 65000f));
+            Assert.Equal(331, plan.SellRegular);
+        }
+
+        [Fact]
         public void PackHerdManagement_DoesNotSellIntoOverburden()
         {
             var advisor = new PartySpeedAdvisor(managePackHerd: true);

@@ -10,6 +10,9 @@ namespace AutoTrader.SpeedTrading
         /// <summary>Regular riding horses to buy for the speed target (>= 0).</summary>
         public readonly int BuyRegular;
 
+        /// <summary>Pack animals to buy because the cargo does not fit (>= 0).</summary>
+        public readonly int BuyPack;
+
         /// <summary>Regular riding horses to sell as surplus (>= 0).</summary>
         public readonly int SellRegular;
 
@@ -28,10 +31,11 @@ namespace AutoTrader.SpeedTrading
         /// <summary>Human-readable rationale (for log/debug).</summary>
         public readonly string Reason;
 
-        public MountRecommendation(int buyRegular, int sellRegular, int sellWar, int sellNoble,
+        public MountRecommendation(int buyRegular, int buyPack, int sellRegular, int sellWar, int sellNoble,
             int sellPack, int sellLivestock, string reason)
         {
             BuyRegular = buyRegular;
+            BuyPack = buyPack;
             SellRegular = sellRegular;
             SellWar = sellWar;
             SellNoble = sellNoble;
@@ -40,7 +44,7 @@ namespace AutoTrader.SpeedTrading
             Reason = reason;
         }
 
-        public bool HasAction => BuyRegular > 0 || SellRegular > 0 || SellWar > 0 || SellNoble > 0
-            || SellPack > 0 || SellLivestock > 0;
+        public bool HasAction => BuyRegular > 0 || BuyPack > 0 || SellRegular > 0 || SellWar > 0
+            || SellNoble > 0 || SellPack > 0 || SellLivestock > 0;
     }
 }

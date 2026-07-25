@@ -27,20 +27,6 @@ namespace AutoTrader
             return logicConnector.GetNumPartyMembers() >= logicConnector.GetNumLivestockAnimals();
         }
 
-        // Horses
-        public static bool CheckBuyHorsesRules(ILogicConnector logicConnector, int buyoutPrice, int availablePlayerGold)
-        {
-            if (logicConnector.IsPackAnimal() && AutoTraderConfig.BuyHorsesValue)
-            {
-                // Buy pack horses rule
-                if (logicConnector.GetNumPartyMembers() > logicConnector.GetNumLivestockAnimals() && buyoutPrice * 2 < availablePlayerGold)
-                    return true;
-
-                // TODO: Add max herding setting
-            }
-            return false;
-        }
-
         // Hardwood stock, governed by one target (SmeltHardwoodTargetValue) for both supply routes.
         // Note both rules compare the PARTY's hardwood, not the amount on offer.
 
