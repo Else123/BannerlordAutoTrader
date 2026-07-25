@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
+using MCM.Abstractions;
 using MCM.Abstractions.Attributes;
 using MCM.Abstractions.Attributes.v2;
+using MCM.Abstractions.Base;
 using MCM.Abstractions.Base.Global;
 
 namespace AutoTrader
@@ -267,6 +271,87 @@ namespace AutoTrader
             AutoTraderConfig.SpeedAwareMountsValue = s.SpeedAwareMounts;
             AutoTraderConfig.ReserveUpgradeMountsValue = s.ReserveUpgradeMounts;
             AutoTraderConfig.SellNobleMountsValue = s.SellNobleMounts;
+        }
+
+        // Built-in presets tuned for common playstyles. The player picks one from the preset
+        // dropdown and can fine-tune from there. Only the values that differ from the defaults
+        // are set; everything else keeps the default.
+        public override IEnumerable<ISettingsPreset> GetBuiltInPresets()
+        {
+            foreach (ISettingsPreset preset in base.GetBuiltInPresets())
+            {
+                yield return preset;
+            }
+
+            // Merchant: maximize trading profit - wide scan, fill the inventory, sell loot.
+            yield return new AutoTraderPreset(Id, "merchant", "Merchant", () => new AutoTraderMcmSettings
+            {
+                SearchRadius = 600,
+                UseInventorySpace = 100,
+                BuyThreshold = 95,
+                SellThreshold = 95,
+                BuyLivestock = true,
+                WeaponsArmorTier = 4
+            });
+
+            // Warlord: keep the army fed, funded and fast; do not haul trade goods.
+            yield return new AutoTraderPreset(Id, "warlord", "Warlord", () => new AutoTraderMcmSettings
+            {
+                KeepWages = 7,
+                UseInventorySpace = 60,
+                BuyGoods = false,
+                KeepGrainsMin = 20,
+                KeepGrainsMax = 150,
+                KeepConsumablesMin = 10,
+                KeepConsumablesMax = 40
+            });
+
+            // Blacksmith: feed the forge - collect smeltables, keep materials and crafted weapons.
+            yield return new AutoTraderPreset(Id, "blacksmith", "Blacksmith", () => new AutoTraderMcmSettings
+            {
+                BuySmeltablesForHardwood = true,
+                SmeltHardwoodTarget = 150,
+                KeepSmelting = true,
+                ResupplyHardwood = true
+            });
+
+            // Minimalist: only sell battle loot, do not buy for resale or restock.
+            yield return new AutoTraderPreset(Id, "minimalist", "Minimalist (sell loot only)", () => new AutoTraderMcmSettings
+            {
+                BuyGoods = false,
+                BuyConsumables = false,
+                Resupply = false
+            });
+        }
+
+        // Lightweight built-in preset backed by a factory that returns a preconfigured instance.
+        private sealed class AutoTraderPreset : ISettingsPreset
+        {
+            private readonly Func<AutoTraderMcmSettings> _factory;
+
+            public AutoTraderPreset(string settingsId, string id, string name, Func<AutoTraderMcmSettings> factory)
+            {
+                SettingsId = settingsId;
+                Id = id;
+                Name = name;
+                _factory = factory;
+            }
+
+            public string SettingsId { get; }
+
+            public string Id { get; }
+
+            public string Name { get; }
+
+            public BaseSettings LoadPreset()
+            {
+                return _factory();
+            }
+
+            public bool SavePreset(BaseSettings settings)
+            {
+                return false;
+            }
         }
     }
 }
