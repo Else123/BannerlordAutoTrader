@@ -314,13 +314,16 @@ namespace AutoTrader
                 KeepConsumablesMax = 40
             });
 
-            // Blacksmith: feed the forge - collect smeltables, keep materials and crafted weapons.
-            yield return new AutoTraderPreset(Id, "blacksmith", "Blacksmith", () => new AutoTraderMcmSettings
+            // Blacksmith: feed the forge - collect cheap smelt fodder and keep materials, but do
+            // sell the crafted output (crafted weapons are the profit, so KeepSmelting stays off;
+            // the cheap fodder is already protected while collecting).
+            yield return new AutoTraderPreset(Id, "blacksmith", "Blacksmith (craft & sell)", () => new AutoTraderMcmSettings
             {
                 BuySmeltablesForHardwood = true,
                 SmeltHardwoodTarget = 150,
-                KeepSmelting = true,
-                ResupplyHardwood = true
+                ResupplyHardwood = true,
+                SellWeapons = true,
+                WeaponsArmorTier = 6
             });
 
             // Minimalist: only sell battle loot, do not buy for resale or restock.

@@ -16,6 +16,12 @@ namespace AutoTrader.SpeedTrading
     /// </summary>
     public sealed class PartySpeedAdvisor
     {
+        /// <summary>
+        /// Cargo capacity one pack animal provides, mirroring
+        /// DefaultInventoryCapacityModel.PackAnimalsFactor (10).
+        /// </summary>
+        private const float CapacityPerPackAnimal = 10f;
+
         private readonly bool _allowNobleSell;
         private readonly bool _managePackHerd;
 
@@ -58,11 +64,17 @@ namespace AutoTrader.SpeedTrading
 
             // Pack animals (mules) add to the herd penalty independently. When enabled, keep pack
             // animals only up to the herd allowance (party size minus livestock) and sell the rest.
+            // Crucially, each pack animal also carries CapacityPerPackAnimal of cargo capacity
+            // (DefaultInventoryCapacityModel.PackAnimalsFactor), so selling too many would push the
+            // party over its capacity - and the Overburdened penalty is harsher than the herd one.
             int sellPack = 0;
             if (_managePackHerd)
             {
                 int packAllowance = Math.Max(0, p.MemberCount - p.Livestock);
-                sellPack = Math.Max(0, p.PackAnimals - packAllowance);
+                int herdSurplus = Math.Max(0, p.PackAnimals - packAllowance);
+                float spareCapacity = p.InventoryCapacity - p.InventoryWeight;
+                int sellableWithoutOverburden = (int)Math.Floor(spareCapacity / CapacityPerPackAnimal);
+                sellPack = Math.Max(0, Math.Min(herdSurplus, sellableWithoutOverburden));
             }
 
             string reason;

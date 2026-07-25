@@ -9,10 +9,11 @@ namespace SpeedTradingTests
         private static PartySnapshot Snapshot(
             int members, int foot,
             int regular = 0, int war = 0, int noble = 0, int pack = 0, int livestock = 0,
-            int warReserve = 0, int nobleReserve = 0)
+            int warReserve = 0, int nobleReserve = 0,
+            float weight = 0f, float capacity = 100000f)
         {
             return new PartySnapshot(members, foot, regular, war, noble, pack, livestock,
-                warReserve, nobleReserve, 0f, 0f);
+                warReserve, nobleReserve, weight, capacity);
         }
 
         [Fact]
@@ -94,6 +95,27 @@ namespace SpeedTradingTests
         {
             var advisor = new PartySpeedAdvisor(managePackHerd: true);
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 40));
+            Assert.Equal(0, plan.SellPack);
+        }
+
+        [Fact]
+        public void PackHerdManagement_DoesNotSellIntoOverburden()
+        {
+            var advisor = new PartySpeedAdvisor(managePackHerd: true);
+            // 30 pack animals above the allowance, but only 25 spare capacity: each pack animal
+            // carries 10, so at most 2 may go before the party would be overburdened.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 130,
+                weight: 975f, capacity: 1000f));
+            Assert.Equal(2, plan.SellPack);
+        }
+
+        [Fact]
+        public void PackHerdManagement_FullCargoBlocksPackSales()
+        {
+            var advisor = new PartySpeedAdvisor(managePackHerd: true);
+            // No spare capacity at all -> keep every pack animal despite the herd penalty.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 130,
+                weight: 1000f, capacity: 1000f));
             Assert.Equal(0, plan.SellPack);
         }
 
