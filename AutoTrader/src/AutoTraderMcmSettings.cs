@@ -38,8 +38,7 @@ namespace AutoTrader
         private const string GoodsGroup = "3. Goods & Equipment";
         private const string SuppliesGroup = "4. Supplies";
         private const string AnimalsGroup = "5. Animals";
-        private const string SmithingGroup = "6. Smithing";
-        private const string DiagnosticsGroup = "7. Diagnostics";
+        private const string DiagnosticsGroup = "6. Diagnostics";
 
         // Mode option lists. Mapping uses SelectedIndex, so the labels can be reworded freely.
         private static readonly string[] PricingModes = { "Trade rumours (smart)", "Fixed thresholds" };
@@ -49,6 +48,7 @@ namespace AutoTrader
         private static readonly string[] PackPolicies = { "Keep all", "Sell surplus" };
         private static readonly string[] LivestockPolicies = { "Keep", "Sell surplus", "Sell all (junk)" };
         private static readonly string[] HardwoodSupplies = { "Off", "Buy hardwood", "Buy smeltable weapons", "Both" };
+        private static readonly string[] WeaponSellPolicies = { "Never", "Looted only (keep crafted)", "All (including crafted)" };
 
         private static Dropdown<string> Choice(string[] values, int index)
         {
@@ -119,9 +119,11 @@ namespace AutoTrader
         [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
         public bool BuyWeapons { get; set; } = false;
 
-        [SettingPropertyBool("Sell weapons", Order = 3, RequireRestart = false)]
+        [SettingPropertyDropdown("Sell weapons", Order = 3, RequireRestart = false,
+            HintText = "Owns the whole weapon-selling decision. 'Looted only' protects your crafted weapons; " +
+                "'All' is for crafting to sell. Cheap smelt fodder is kept separately while below the hardwood target.")]
         [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
-        public bool SellWeapons { get; set; } = true;
+        public Dropdown<string> WeaponSellPolicy { get; set; } = Choice(WeaponSellPolicies, 1);
 
         [SettingPropertyBool("Buy armor", Order = 4, RequireRestart = false)]
         [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
@@ -178,6 +180,11 @@ namespace AutoTrader
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public int HardwoodTarget { get; set; } = 100;
 
+        [SettingPropertyBool("Sell smithing materials", Order = 9, RequireRestart = false,
+            HintText = "Off keeps ore, ingots, charcoal and hardwood for the forge.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public bool SellSmithing { get; set; } = false;
+
         // --- 5. Animals (single owner of every animal decision) --------------
 
         [SettingPropertyDropdown("Mount management", Order = 0, RequireRestart = false,
@@ -228,23 +235,11 @@ namespace AutoTrader
         [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
         public int KeepLivestockReserve { get; set; } = 5;
 
-        // --- 6. Smithing -----------------------------------------------------
-
-        [SettingPropertyBool("Sell smithing materials", Order = 0, RequireRestart = false,
-            HintText = "Off keeps ore, ingots, charcoal and hardwood for crafting.")]
-        [SettingPropertyGroup(SmithingGroup, GroupOrder = 5)]
-        public bool SellSmithing { get; set; } = false;
-
-        [SettingPropertyBool("Keep crafted weapons", Order = 1, RequireRestart = false,
-            HintText = "Keeps every weapon that can be smelted, including your own crafted ones. Turn off if you craft to sell.")]
-        [SettingPropertyGroup(SmithingGroup, GroupOrder = 5)]
-        public bool KeepSmelting { get; set; } = false;
-
-        // --- 7. Diagnostics --------------------------------------------------
+        // --- 6. Diagnostics --------------------------------------------------
 
         [SettingPropertyBool("Debug logging", Order = 0, RequireRestart = false,
             HintText = "Write every decision to AutoTrader.log next to AutoTraderConfig.xml. Slows trading down.")]
-        [SettingPropertyGroup(DiagnosticsGroup, GroupOrder = 6)]
+        [SettingPropertyGroup(DiagnosticsGroup, GroupOrder = 5)]
         public bool DebugMode { get; set; } = false;
 
         /// <summary>
@@ -276,7 +271,11 @@ namespace AutoTrader
             AutoTraderConfig.BuyGoodsValue = s.BuyGoods;
             AutoTraderConfig.SellGoodsValue = s.SellGoods;
             AutoTraderConfig.BuyWeaponsValue = s.BuyWeapons;
-            AutoTraderConfig.SellWeaponsValue = s.SellWeapons;
+            // The weapon policy owns both the sell gate and the crafted-weapon protection, so the
+            // two can no longer be set to contradict each other from different sections.
+            int weapons = s.WeaponSellPolicy.SelectedIndex;
+            AutoTraderConfig.SellWeaponsValue = weapons != 0;
+            AutoTraderConfig.KeepSmeltingValue = weapons == 1;
             AutoTraderConfig.BuyArmorValue = s.BuyArmor;
             AutoTraderConfig.SellArmorValue = s.SellArmor;
             AutoTraderConfig.WeaponsArmorTierValue = s.SellUpToTier;
@@ -315,9 +314,7 @@ namespace AutoTrader
             AutoTraderConfig.JunkCattleValue = livestock == 2;
             AutoTraderConfig.KeepLivestockReserveValue = s.KeepLivestockReserve;
 
-            // Smithing and diagnostics.
             AutoTraderConfig.SellSmithingValue = s.SellSmithing;
-            AutoTraderConfig.KeepSmeltingValue = s.KeepSmelting;
             AutoTraderConfig.DebugMode = s.DebugMode;
         }
 
@@ -362,8 +359,8 @@ namespace AutoTrader
                 HardwoodSupply = Choice(HardwoodSupplies, 3),
                 HardwoodTarget = 150,
                 SellSmithing = false,
-                KeepSmelting = false,
-                SellWeapons = true,
+                // Crafting for profit: sell the crafted output too.
+                WeaponSellPolicy = Choice(WeaponSellPolicies, 2),
                 SellUpToTier = 6
             });
 
