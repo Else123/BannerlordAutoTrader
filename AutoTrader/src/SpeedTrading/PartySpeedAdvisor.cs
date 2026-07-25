@@ -18,19 +18,20 @@ namespace AutoTrader.SpeedTrading
         /// <summary>Safety margin below the herd threshold (number of animals).</summary>
         private const int HerdSafetyMargin = 2;
 
-        private readonly float _herdThresholdFactor;
+        private readonly int _herdThresholdPercent;
         private readonly bool _allowNobleSell;
 
-        public PartySpeedAdvisor(float herdThresholdFactor = 1.05f, bool allowNobleSell = false)
+        public PartySpeedAdvisor(int herdThresholdPercent = 105, bool allowNobleSell = false)
         {
-            _herdThresholdFactor = herdThresholdFactor;
+            _herdThresholdPercent = herdThresholdPercent;
             _allowNobleSell = allowNobleSell;
         }
 
         /// <summary>Animal count at/above which the herd penalty kicks in.</summary>
         public int HerdThreshold(in PartySnapshot p)
         {
-            return (int)Math.Floor(p.MemberCount * _herdThresholdFactor);
+            // Integer math keeps the threshold exact (float 1.05 rounds 100 members to 104).
+            return p.MemberCount * _herdThresholdPercent / 100;
         }
 
         /// <summary>

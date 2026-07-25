@@ -136,7 +136,7 @@ namespace AutoTrader
                 _logicConnector.GetInventoryCapacity());
 
             PartySpeedAdvisor advisor = new PartySpeedAdvisor(
-                AutoTraderConfig.HerdThresholdPercentValue / 100f,
+                AutoTraderConfig.HerdThresholdPercentValue,
                 AutoTraderConfig.SellNobleMountsValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
             _buyRegularBudget = recommendation.BuyRegular;
@@ -388,6 +388,42 @@ namespace AutoTrader
             _logicConnector.TransferItem();
         }
 
+        // Decides whether to buy the current horse item. Pack animals keep the original
+        // resupply rule; only regular riding horses are bought, up to the speed budget.
+        private bool DecideHorsePurchase(int amount, int buyoutPrice)
+        {
+            if (_logicConnector.IsPackAnimal())
+            {
+                if (AutoTraderSpecialRules.CheckBuyHorsesRules(_logicConnector, buyoutPrice, _availablePlayerGold))
+                    return CheckBasicBuyRequirements(amount, buyoutPrice);
+                AutoTraderHelpers.PrintDebugMessage(" - do not buy because we need no additional pack animals");
+                return false;
+            }
+
+            // Riding mounts: only buy regular horses for the speed target. War/noble mounts
+            // are upgrade material and are not bought for speed here.
+            bool isRegularMount = !_logicConnector.IsWarMount() && !_logicConnector.IsNobleMount();
+            if (AutoTraderConfig.SpeedAwareMountsValue && isRegularMount && _buyRegularBudget > 0)
+            {
+                // In fleet mode mounts occupy ship cargo -> respect capacity like other goods.
+                if (AutoTraderConfig.UseMaxFleetCapacityValue
+                    && _logicConnector.GetItemWeight() > _availableInventoryCapacity)
+                {
+                    AutoTraderHelpers.PrintDebugMessage(" - do not buy mount: fleet capacity reached");
+                    return false;
+                }
+                if (CheckBasicBuyRequirements(amount, buyoutPrice))
+                {
+                    _buyRegularBudget--;
+                    return true;
+                }
+                return false;
+            }
+
+            AutoTraderHelpers.PrintDebugMessage(" - do not buy mount (enough for speed, or war/noble kept for upgrades)");
+            return false;
+        }
+
         private bool CanBuy(float averagePrice, int amount, int ownAmount, out int buyoutPrice)
         {
             AutoTraderHelpers.PrintDebugMessage("### Can buy check ###");
@@ -400,37 +436,7 @@ namespace AutoTrader
             // Horses
             if (_logicConnector.IsHorse())
             {
-                // Pack animals keep the original resupply rule.
-                if (_logicConnector.IsPackAnimal())
-                {
-                    if (AutoTraderSpecialRules.CheckBuyHorsesRules(_logicConnector, buyoutPrice, _availablePlayerGold))
-                        return CheckBasicBuyRequirements(amount, buyoutPrice);
-                    AutoTraderHelpers.PrintDebugMessage(" - do not buy because we need no additional pack animals");
-                    return false;
-                }
-
-                // Riding mounts: only buy regular horses for the speed target. War/noble
-                // mounts are upgrade material and are not bought for speed here.
-                bool isRegularMount = !_logicConnector.IsWarMount() && !_logicConnector.IsNobleMount();
-                if (AutoTraderConfig.SpeedAwareMountsValue && isRegularMount && _buyRegularBudget > 0)
-                {
-                    // In fleet mode mounts occupy ship cargo -> respect capacity like other goods.
-                    if (AutoTraderConfig.UseMaxFleetCapacityValue
-                        && _logicConnector.GetItemWeight() > _availableInventoryCapacity)
-                    {
-                        AutoTraderHelpers.PrintDebugMessage(" - do not buy mount: fleet capacity reached");
-                        return false;
-                    }
-                    if (CheckBasicBuyRequirements(amount, buyoutPrice))
-                    {
-                        _buyRegularBudget--;
-                        return true;
-                    }
-                    return false;
-                }
-
-                AutoTraderHelpers.PrintDebugMessage(" - do not buy mount (enough for speed, or war/noble kept for upgrades)");
-                return false;
+                return DecideHorsePurchase(amount, buyoutPrice);
             }
 
             // Hardwood
