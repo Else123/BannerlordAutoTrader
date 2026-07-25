@@ -17,18 +17,28 @@ namespace AutoTrader.SpeedTrading
     public sealed class PartySpeedAdvisor
     {
         /// <summary>
-        /// Cargo capacity one pack animal provides, mirroring
-        /// DefaultInventoryCapacityModel.PackAnimalsFactor (10).
+        /// Cargo capacity one pack animal provides: DefaultInventoryCapacityModel adds
+        /// PackAnimalsFactor (10) * _itemAverageWeight (10) per pack animal.
         /// </summary>
-        private const float CapacityPerPackAnimal = 10f;
+        private const float CapacityPerPackAnimal = 100f;
+
+        /// <summary>
+        /// Cargo capacity one spare mount provides: SpareMountsFactor (2) * _itemAverageWeight (10).
+        /// </summary>
+        private const float CapacityPerSpareMount = 20f;
 
         private readonly bool _allowNobleSell;
         private readonly bool _managePackHerd;
+        private readonly bool _manageLivestockHerd;
+        private readonly int _livestockReserve;
 
-        public PartySpeedAdvisor(bool allowNobleSell = false, bool managePackHerd = false)
+        public PartySpeedAdvisor(bool allowNobleSell = false, bool managePackHerd = false,
+            bool manageLivestockHerd = false, int livestockReserve = 0)
         {
             _allowNobleSell = allowNobleSell;
             _managePackHerd = managePackHerd;
+            _manageLivestockHerd = manageLivestockHerd;
+            _livestockReserve = livestockReserve;
         }
 
         /// <summary>Ridable spare mounts wanted: one per foot soldier (herd-free and gives the bonus).</summary>
@@ -46,9 +56,16 @@ namespace AutoTrader.SpeedTrading
             // Buy regular horses up to the foot-soldier count (gold/capacity handled in the gate).
             int buyRegular = Math.Max(0, target - ridable);
 
+            // Selling animals also removes the cargo capacity they provide, and the Overburdened
+            // penalty is harsher than the herd penalty. Track the spare capacity and never sell so
+            // much that the cargo no longer fits.
+            float spareCapacity = p.InventoryCapacity - p.InventoryWeight;
+
             // Sell mounts beyond the foot-soldier count: regular first, then war above its upgrade
             // reserve, and noble last and only if explicitly allowed.
             int surplus = Math.Max(0, ridable - target);
+            surplus = Math.Min(surplus, (int)Math.Floor(spareCapacity / CapacityPerSpareMount));
+            spareCapacity -= surplus * CapacityPerSpareMount;
             int sellRegular = Math.Min(p.RegularMounts, surplus);
             int rest = surplus - sellRegular;
 
@@ -62,19 +79,24 @@ namespace AutoTrader.SpeedTrading
                 rest -= sellNoble;
             }
 
-            // Pack animals (mules) add to the herd penalty independently. When enabled, keep pack
-            // animals only up to the herd allowance (party size minus livestock) and sell the rest.
-            // Crucially, each pack animal also carries CapacityPerPackAnimal of cargo capacity
-            // (DefaultInventoryCapacityModel.PackAnimalsFactor), so selling too many would push the
-            // party over its capacity - and the Overburdened penalty is harsher than the herd one.
+            // Pack animals and livestock both add to the herd penalty, which starts once the herd
+            // exceeds the party size. Shed the excess, livestock first: livestock provides no cargo
+            // capacity at all, while every pack animal carries CapacityPerPackAnimal.
+            int sellLivestock = 0;
             int sellPack = 0;
-            if (_managePackHerd)
+            int herdExcess = Math.Max(0, p.PackAnimals + p.Livestock - p.MemberCount);
+
+            if (_manageLivestockHerd && herdExcess > 0)
             {
-                int packAllowance = Math.Max(0, p.MemberCount - p.Livestock);
-                int herdSurplus = Math.Max(0, p.PackAnimals - packAllowance);
-                float spareCapacity = p.InventoryCapacity - p.InventoryWeight;
+                int sellableLivestock = Math.Max(0, p.Livestock - _livestockReserve);
+                sellLivestock = Math.Min(herdExcess, sellableLivestock);
+                herdExcess -= sellLivestock;
+            }
+
+            if (_managePackHerd && herdExcess > 0)
+            {
                 int sellableWithoutOverburden = (int)Math.Floor(spareCapacity / CapacityPerPackAnimal);
-                sellPack = Math.Max(0, Math.Min(herdSurplus, sellableWithoutOverburden));
+                sellPack = Math.Max(0, Math.Min(Math.Min(herdExcess, p.PackAnimals), sellableWithoutOverburden));
             }
 
             string reason;
@@ -82,17 +104,18 @@ namespace AutoTrader.SpeedTrading
             {
                 reason = $"Buy {buyRegular} regular mounts (ridable {ridable}/{target} foot soldiers).";
             }
-            else if (sellRegular + sellWar + sellNoble + sellPack > 0)
+            else if (sellRegular + sellWar + sellNoble + sellPack + sellLivestock > 0)
             {
-                reason = $"Sell surplus mounts reg={sellRegular} war={sellWar} noble={sellNoble} pack={sellPack} " +
-                    $"(ridable {ridable}, target {target}; reserves war={p.WarUpgradeReserve} noble={p.NobleUpgradeReserve}).";
+                reason = $"Sell surplus reg={sellRegular} war={sellWar} noble={sellNoble} pack={sellPack} livestock={sellLivestock} " +
+                    $"(ridable {ridable}, target {target}; herd pack={p.PackAnimals}+livestock={p.Livestock} vs members={p.MemberCount}; " +
+                    $"spare capacity {p.InventoryCapacity - p.InventoryWeight:0}).";
             }
             else
             {
-                reason = "Mounts already balanced for speed and upgrades.";
+                reason = "Animals already balanced for speed, upgrades and capacity.";
             }
 
-            return new MountRecommendation(buyRegular, sellRegular, sellWar, sellNoble, sellPack, reason);
+            return new MountRecommendation(buyRegular, sellRegular, sellWar, sellNoble, sellPack, sellLivestock, reason);
         }
     }
 }

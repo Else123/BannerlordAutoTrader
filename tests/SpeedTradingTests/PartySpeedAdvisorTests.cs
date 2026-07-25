@@ -82,12 +82,33 @@ namespace SpeedTradingTests
         }
 
         [Fact]
-        public void PackHerdManagement_LivestockReducesThePackAllowance()
+        public void HerdManagement_ShedsLivestockBeforePackAnimals()
         {
-            var advisor = new PartySpeedAdvisor(managePackHerd: true);
-            // allowance = 100 - 40 livestock = 60; 70 pack -> sell 10.
+            var advisor = new PartySpeedAdvisor(managePackHerd: true, manageLivestockHerd: true);
+            // herd = 70 pack + 40 livestock = 110 vs 100 members -> excess 10. Livestock carries no
+            // cargo capacity, so it is shed first and the pack animals stay.
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 70, livestock: 40));
-            Assert.Equal(10, plan.SellPack);
+            Assert.Equal(10, plan.SellLivestock);
+            Assert.Equal(0, plan.SellPack);
+        }
+
+        [Fact]
+        public void LivestockHerdManagement_RespectsTheFoodReserve()
+        {
+            var advisor = new PartySpeedAdvisor(manageLivestockHerd: true, livestockReserve: 20);
+            // excess 30, but only 25 livestock may go (45 - 20 reserve).
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, pack: 85, livestock: 45));
+            Assert.Equal(25, plan.SellLivestock);
+        }
+
+        [Fact]
+        public void LivestockHerdManagement_PackAnimalsCoverTheRemainingExcess()
+        {
+            var advisor = new PartySpeedAdvisor(managePackHerd: true, manageLivestockHerd: true, livestockReserve: 20);
+            // excess 30: 25 livestock (down to the reserve) then 5 pack animals; capacity is ample.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, pack: 85, livestock: 45));
+            Assert.Equal(25, plan.SellLivestock);
+            Assert.Equal(5, plan.SellPack);
         }
 
         [Fact]
@@ -102,10 +123,10 @@ namespace SpeedTradingTests
         public void PackHerdManagement_DoesNotSellIntoOverburden()
         {
             var advisor = new PartySpeedAdvisor(managePackHerd: true);
-            // 30 pack animals above the allowance, but only 25 spare capacity: each pack animal
-            // carries 10, so at most 2 may go before the party would be overburdened.
+            // 30 pack animals above the allowance, but only 250 spare capacity: each pack animal
+            // carries 100, so at most 2 may go before the party would be overburdened.
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 130,
-                weight: 975f, capacity: 1000f));
+                weight: 750f, capacity: 1000f));
             Assert.Equal(2, plan.SellPack);
         }
 

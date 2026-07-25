@@ -31,6 +31,7 @@ namespace AutoTrader
         private int _sellWarBudget;
         private int _sellNobleBudget;
         private int _sellPackBudget;
+        private int _sellLivestockBudget;
 
         // Post-trade summary counters (units transacted this run).
         private int _unitsBought;
@@ -128,6 +129,7 @@ namespace AutoTrader
             _sellWarBudget = 0;
             _sellNobleBudget = 0;
             _sellPackBudget = 0;
+            _sellLivestockBudget = 0;
             if (!AutoTraderConfig.SpeedAwareMountsValue)
             {
                 return;
@@ -156,13 +158,16 @@ namespace AutoTrader
 
             PartySpeedAdvisor advisor = new PartySpeedAdvisor(
                 AutoTraderConfig.SellNobleMountsValue,
-                AutoTraderConfig.ManagePackAnimalHerdValue);
+                AutoTraderConfig.ManagePackAnimalHerdValue && !AutoTraderConfig.ProtectPackAnimalsValue,
+                AutoTraderConfig.ManageLivestockHerdValue,
+                AutoTraderConfig.KeepLivestockReserveValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
             _buyRegularBudget = recommendation.BuyRegular;
             _sellRegularBudget = recommendation.SellRegular;
             _sellWarBudget = recommendation.SellWar;
             _sellNobleBudget = recommendation.SellNoble;
             _sellPackBudget = recommendation.SellPack;
+            _sellLivestockBudget = recommendation.SellLivestock;
             AutoTraderHelpers.PrintDebugMessage(" - mount plan: " + recommendation.Reason);
         }
 
@@ -656,7 +661,7 @@ namespace AutoTrader
                 if (AutoTraderConfig.SpeedAwareMountsValue && _logicConnector.IsPackAnimal())
                 {
                     // Honor the explicit "protect pack animals" setting even in speed-aware mode.
-                    if (AutoTraderConfig.SellHorsesValue)
+                    if (AutoTraderConfig.ProtectPackAnimalsValue)
                     {
                         AutoTraderHelpers.PrintDebugMessage("- keep pack animal (protected by setting)");
                         return false;
@@ -748,6 +753,16 @@ namespace AutoTrader
                 // Sell if its treated as junk
                 if (AutoTraderConfig.JunkCattleValue)
                     return CheckBasicSellRequirements(amount, buyoutPrice);
+
+                // Otherwise shed only the herd surplus: livestock slows the party down and, unlike
+                // pack animals, adds no cargo capacity. The consumables minimum above already
+                // protects the food reserve.
+                if (_sellLivestockBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
+                {
+                    _sellLivestockBudget--;
+                    AutoTraderHelpers.PrintDebugMessage(" - [mount] SELL livestock as herd surplus");
+                    return true;
+                }
             }
 
             // Special hardwood rule

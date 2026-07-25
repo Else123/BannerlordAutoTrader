@@ -124,8 +124,8 @@ namespace AutoTrader
         [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
         public bool BuyHorses { get; set; } = true;
 
-        [SettingPropertyBool("Protect pack animals", Order = 11, RequireRestart = false,
-            HintText = "Do not sell pack animals.")]
+        [SettingPropertyBool("Sell horses (legacy)", Order = 11, RequireRestart = false,
+            HintText = "Allow selling horses when speed-aware mount trading is OFF. With it on, the mount plan decides.")]
         [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
         public bool SellHorses { get; set; } = false;
 
@@ -227,6 +227,21 @@ namespace AutoTrader
         [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
         public int KeepMountsAboveValue { get; set; } = 2000;
 
+        [SettingPropertyBool("Protect pack animals", Order = 7, RequireRestart = false,
+            HintText = "Never sell pack animals (mules/sumpters), not even as herd surplus.")]
+        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        public bool ProtectPackAnimals { get; set; } = false;
+
+        [SettingPropertyBool("Sell surplus livestock", Order = 5, RequireRestart = false,
+            HintText = "Sell cattle/sheep above the herd allowance - they slow the party down and carry nothing.")]
+        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        public bool ManageLivestockHerd { get; set; } = true;
+
+        [SettingPropertyInteger("Keep livestock (food reserve)", 0, 200, "0", Order = 6, RequireRestart = false,
+            HintText = "Livestock to keep regardless of the herd penalty.")]
+        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        public int KeepLivestockReserve { get; set; } = 5;
+
         /// <summary>
         /// Copies the MCM values into <see cref="AutoTraderConfig"/> when MCM is available.
         /// Safe no-op if MCM has not registered the settings (Instance is null).
@@ -260,6 +275,7 @@ namespace AutoTrader
             AutoTraderConfig.SellLivestockValue = s.SellLivestock;
             AutoTraderConfig.BuyHorsesValue = s.BuyHorses;
             AutoTraderConfig.SellHorsesValue = s.SellHorses;
+            AutoTraderConfig.ProtectPackAnimalsValue = s.ProtectPackAnimals;
 
             AutoTraderConfig.BuyThresholdValue = s.BuyThreshold;
             AutoTraderConfig.SellThresholdValue = s.SellThreshold;
@@ -283,6 +299,8 @@ namespace AutoTrader
             AutoTraderConfig.SellNobleMountsValue = s.SellNobleMounts;
             AutoTraderConfig.ManagePackAnimalHerdValue = s.ManagePackAnimalHerd;
             AutoTraderConfig.KeepMountsAboveValueValue = s.KeepMountsAboveValue;
+            AutoTraderConfig.ManageLivestockHerdValue = s.ManageLivestockHerd;
+            AutoTraderConfig.KeepLivestockReserveValue = s.KeepLivestockReserve;
         }
 
         // Built-in presets tuned for common playstyles. The player picks one from the preset

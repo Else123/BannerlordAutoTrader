@@ -38,7 +38,11 @@ namespace AutoTrader
         public static bool JunkCattleValue { get; set; } = false;
 
         public static bool BuyHorsesValue { get; set; } = true;
+        // Legacy toggle: allow selling horses at all. Only relevant when speed-aware mount trading
+        // is off - with it on, the per-category mount plan governs selling instead.
         public static bool SellHorsesValue { get; set; } = false;
+        // Speed-aware mode: never sell pack animals, not even as herd surplus.
+        public static bool ProtectPackAnimalsValue { get; set; } = false;
 
         // Speed-aware mount trading: trade mounts so party speed stays optimal.
         public static bool SpeedAwareMountsValue { get; set; } = true;
@@ -51,6 +55,11 @@ namespace AutoTrader
         // Never sell a mount priced at or above this value (protects unique/named mounts whose
         // item category is not war_horse/noble_horse). 0 disables the guard.
         public static int KeepMountsAboveValueValue { get; set; } = 2000;
+        // Sell livestock (cattle/sheep) above the herd allowance; they slow the party down and,
+        // unlike pack animals, provide no cargo capacity.
+        public static bool ManageLivestockHerdValue { get; set; } = true;
+        // Livestock to keep regardless of the herd (food reserve).
+        public static int KeepLivestockReserveValue { get; set; } = 5;
         public static bool BuyWeaponsValue { get; set; } = false;
         public static bool SellWeaponsValue { get; set; } = true;
         public static bool BuyArmorValue { get; set; } = false;
@@ -202,6 +211,10 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.SellHorsesValue = Boolean.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "protectPackAnimalsValue")
+                        {
+                            AutoTraderConfig.ProtectPackAnimalsValue = Boolean.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "speedAwareMountsValue")
                         {
                             AutoTraderConfig.SpeedAwareMountsValue = Boolean.Parse(textReader.ReadString());
@@ -221,6 +234,14 @@ namespace AutoTrader
                         else if (textReader.Name == "keepMountsAboveValueValue")
                         {
                             AutoTraderConfig.KeepMountsAboveValueValue = Int32.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "manageLivestockHerdValue")
+                        {
+                            AutoTraderConfig.ManageLivestockHerdValue = Boolean.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "keepLivestockReserveValue")
+                        {
+                            AutoTraderConfig.KeepLivestockReserveValue = Int32.Parse(textReader.ReadString());
                         }
                         else if (textReader.Name == "buyArmorValue")
                         {
@@ -314,11 +335,14 @@ namespace AutoTrader
 
                 textWriter.WriteElementString("buyHorsesValue", AutoTraderConfig.BuyHorsesValue.ToString());
                 textWriter.WriteElementString("sellHorsesValue", AutoTraderConfig.SellHorsesValue.ToString());
+                textWriter.WriteElementString("protectPackAnimalsValue", AutoTraderConfig.ProtectPackAnimalsValue.ToString());
                 textWriter.WriteElementString("speedAwareMountsValue", AutoTraderConfig.SpeedAwareMountsValue.ToString());
                 textWriter.WriteElementString("reserveUpgradeMountsValue", AutoTraderConfig.ReserveUpgradeMountsValue.ToString());
                 textWriter.WriteElementString("sellNobleMountsValue", AutoTraderConfig.SellNobleMountsValue.ToString());
                 textWriter.WriteElementString("managePackAnimalHerdValue", AutoTraderConfig.ManagePackAnimalHerdValue.ToString());
                 textWriter.WriteElementString("keepMountsAboveValueValue", AutoTraderConfig.KeepMountsAboveValueValue.ToString());
+                textWriter.WriteElementString("manageLivestockHerdValue", AutoTraderConfig.ManageLivestockHerdValue.ToString());
+                textWriter.WriteElementString("keepLivestockReserveValue", AutoTraderConfig.KeepLivestockReserveValue.ToString());
                 textWriter.WriteElementString("buyArmorValue", AutoTraderConfig.BuyArmorValue.ToString());
                 textWriter.WriteElementString("sellArmorValue", AutoTraderConfig.SellArmorValue.ToString());
                 textWriter.WriteElementString("buyWeaponsValue", AutoTraderConfig.BuyWeaponsValue.ToString());
