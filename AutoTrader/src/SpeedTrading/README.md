@@ -1,84 +1,98 @@
-# Speed-Aware Mount Trading (Feature-Branch `feature/speed-aware-mounts`)
+# Speed- & Upgrade-Aware Mount Trading (Feature Plan v2)
 
-Erweiterung des AutoTraders: Reittiere so handeln, dass die **Party-Karten-
-geschwindigkeit maximiert** wird — statt der bisherigen groben "halte Tiere
-unter Party-Groesse"-Regel.
+Branch `feature/speed-aware-mounts`. Extends the auto trader so mounts are traded to
+keep **party speed high** WHILE not blocking **troop upgrades**.
 
-## Ausgangslage im Upstream-Code
+## Current state (v1, works in-game)
 
-Eskalior hat Reittier-Handel angefangen und wieder stillgelegt:
+- Connector primitives `GetNumFootTroops`, `GetNumSpareRidingMounts`.
+- `ComputeMountBudgets` (in `AutoTraderLogic`) + engine-free `PartySpeedAdvisor`.
+- Buy gate: buy riding horses up to the speed target; fleet capacity cap.
+- Sell gate: protect riding mounts, sell only the surplus above the herd threshold.
+- Config `SpeedAwareMountsValue`, `HerdThresholdPercentValue` (XML only, no GUI).
+- Builds cleanly (VS2026/MSBuild), deploys as its own module `AutoTraderSpeed`.
 
-- `AutoTraderLogic.PerformAutoTrade` Zeile 68: `//BuyHorses();` (auskommentiert)
-- `AutoTraderLogic` Zeilen ~249-295: `BuyHorses()` / `BuyHorseFilter()` (komplett auskommentiert)
-- `AutoTraderSpecialRules.CheckBuyHorsesRules` (Zeile 31): kauft nur Packtiere,
-  Regel `NumPartyMembers > NumLivestockAnimals`, mit `// TODO: Add max herding setting`
-- `AutoTraderLogic.CanSell` (Zeile ~477): schuetzt Packtiere pauschal vor Verkauf
+**Known gaps in v1 (motivation for v2):**
+1. Only riding horses are considered - **pack animals / livestock missing** from the
+   herd/speed maths.
+2. **No mount categories** - regular/war/noble are treated identically.
+3. **No upgrade reserve** - could sell war/noble mounts that are needed for troop
+   upgrades.
+4. Speed threshold simplified (not calibrated against `DefaultPartySpeedCalculatingModel`).
+5. No GUI for the settings.
 
-### Was fehlt (= unser Mehrwert)
+## Domain model v2
 
-1. **Speed-Optimum**: genug freie Reittiere, um Fusssoldaten aufsitzen zu lassen
-   (Vanilla-Speed-Bonus je berittenem Fusssoldaten).
-2. **Herd-Schwelle**: Tiere oberhalb ~`MemberCount * 1.05` erzeugen Malus -> nicht
-   ueberkaufen, Ueberschuss abstossen (genau Eskaliors offenes TODO).
-3. **Reit- vs. Packtier**: `NumberOfLivestockAnimals` = Vieh (Kuh/Schaf), NICHT Pferde.
-   Reitpferde muessen separat gezaehlt werden.
-4. **Verkauf von Herd-Ueberschuss** statt pauschalem Packtier-Schutz.
-5. **Kein unbegrenztes Anhaeufen**: aktuell koennen Reit-/Packtiere endlos
-   dazukommen -> Party wird immer langsamer. Das Speed-Optimum MUSS immer als
-   Obergrenze wirken.
+### Mounts have two competing purposes
 
-## Sonderfall: Schiffskapazitaet (Warsails-Flottenmodus)
+- **Speed**: every free ridable horse lets a foot soldier mount up (speed bonus). Any
+  category except pack animal counts for this.
+- **Upgrade material**: troop upgrades require a specific mount category depending on the
+  target (T1 "Mount" / T2-T3 "War Mount" / T4 "Noble Mount"). These horses are valuable
+  and must NOT be sold as speed surplus while upgrades are pending.
 
-Wenn der Spieler `UseMaxFleetCapacityValue` aktiviert (nur Schiffskapazitaet zaehlt,
-`WarsailsHelper.GetFleetCargoCapacity` / `GetFleetTotalWeightCarried`), dann:
+### Categories (detection - verify against decompiled v1.4.7)
 
-- Die **Mount-Obergrenze an die Schiffskapazitaet koppeln**, sodass geladene Tiere
-  und Fracht grob im Gleichgewicht bleiben (nicht die Kartengeschwindigkeit der
-  Land-Party optimieren, waehrend die Fracht auf Schiffen liegt).
-- Das **Speed-Optimum bleibt trotzdem aktiv** als Obergrenze: keine endlose
-  Mount-Akkumulation, auch nicht im Flottenmodus.
-- Praktisch: In `PartySnapshot`/`PartySpeedAdvisor` einen Kapazitaetsbezug ergaenzen
-  (Ziel = min(Fusssoldaten, Herd-Schwelle, kapazitaetsbasierte Obergrenze)) und im
-  Flottenmodus die kapazitaetsbasierte Obergrenze aus der Schiffskapazitaet ableiten.
+| Category | Detection (planned) | Purpose |
+|----------|---------------------|---------|
+| PackAnimal | `HorseComponent.IsPackAnimal` (Mule/Sumpter) | carry weight + herd penalty |
+| Riding (regular) | Horse, !pack, Tier<=1 / ItemCategory Horse | speed + T1 upgrades |
+| WarMount | Horse, !pack, Tier 2-3 / ItemCategory WarHorse | speed + war upgrades |
+| NobleMount | Horse, !pack, Tier 4 / ItemCategory NobleHorse | speed + noble upgrades (rare, most valuable) |
+| Livestock | `ItemType.Animal` / `IsAnimal` (cattle/sheep) | herd penalty, not ridable |
 
-## Entscheidungslogik (bereits vorbereitet, engine-frei, testbar)
+Anchors: `item.HorseComponent.IsPackAnimal`, `item.ItemCategory`, `item.Tier`.
+Upgrade demand: `CharacterObject.UpgradeTargets` + `UpgradeRequiresItemFromCategory`
+(count the required mount category per upgradable troop).
 
-- `PartySnapshot.cs` — Datenschnappschuss (Members, Fusssoldaten, freie Reittiere, Gewicht, Kapazitaet)
-- `MountRecommendation.cs` — Ergebnis: BuyCount / SellCount / Begruendung
-- `PartySpeedAdvisor.cs` — Kernheuristik: Zielbestand = min(Fusssoldaten, Herd-Schwelle - Marge)
+## Decision logic v2
 
-**Status: verdrahtet** — im `AutoTrader.csproj` und genutzt von `AutoTraderLogic.ComputeMountBudgets()`.
+### Herd/speed cap on TOTAL animal count (fixes gap 1)
 
-## Umsetzungsstand
+`totalAnimals = pack + riding + war + noble + livestock`. Herd threshold ~
+`MemberCount * factor` applies to `totalAnimals`, not just riding horses.
 
-**Implementiert auf `feature/speed-aware-mounts`** (noch NICHT kompiliert-verifiziert -
-Toolchain fehlt). Umgesetzt: Connector-Primitive (`GetNumFootTroops`,
-`GetNumSpareRidingMounts`), Budget-Berechnung (`ComputeMountBudgets`), Kauf-Gate
-(Reitpferde bis Speed-Ziel, Flotten-Kapazitaets-Cap), Verkauf-Gate (Reitpferde
-schuetzen, nur Herd-Ueberschuss abstossen), Config-Felder `SpeedAwareMountsValue` /
-`HerdThresholdPercentValue`. **Offen:** GUI-Expose der neuen Settings + Build/Ingame-Test.
+### Reserves before selling (fixes gaps 2+3)
 
-### Referenz: die geplanten Schritte
+Mounts to keep per category =
+`max(SpeedReserve, UpgradeReserve[cat])`, where
+- `SpeedReserve` = enough ridable mounts to mount the foot soldiers (category-agnostic).
+- `UpgradeReserve[cat]` = sum of mounts of that category required by pending upgrades
+  (+ configurable buffer).
 
-1. **`ILogicConnector` + `AutoTraderLogicConnector` erweitern** um die fehlenden Primitive:
-   - `int GetNumFootTroops()` -> aus `MemberRoster` (nicht-berittene Formationsklassen)
-   - `int GetNumSpareRidingMounts()` -> Inventar-Pferde mit `HorseComponent.IsPackAnimal == false`
-   (Gewicht/Kapazitaet/PartyMembers gibt es schon.)
-2. **`AutoTraderSpecialRules.CheckBuyHorsesRules`** durch `PartySpeedAdvisor`-Aufruf ersetzen
-   (Snapshot bauen -> `Recommend` -> BuyCount > 0 ?).
-3. **Verkaufspfad** in `CanSell` fuer Herd-Ueberschuss ergaenzen (SellCount > 0).
-4. **`BuyHorses()` reaktivieren** (Eskaliors Geruest) ODER in den bestehenden
-   `CanBuy`-Horse-Zweig falten — eine Variante waehlen, nicht beide.
-5. **Config** in `AutoTraderConfig` + MCM-GUI: Feature-Toggle, Herd-Schwellen-%,
-   Mindest-Reserve an Reittieren.
-6. **Verifikation**: Build gruen, im Spiel Stadt betreten -> Reittier-Kauf/-Verkauf
-   bewegt Party-Speed messbar Richtung Optimum.
+### Sell order (true surplus only)
 
-## Verifikations-Hinweis (API bereits belegt)
+1. Sell **regular riding** above reserve first.
+2. Then **PackAnimal** above the carry/herd need (new: manage pack animals).
+3. **WarMount** only above the upgrade reserve, conservatively.
+4. **NobleMount** protected by default (only on clear surplus, opt-in setting).
 
-Aus dem Upstream-Connector bestaetigt (kein Rateanteil mehr):
-- Handel laeuft ueber `TransferCommand.Transfer(...)` + `InventoryLogic`
-- Packtier-Erkennung: `item.HorseComponent.IsPackAnimal`
-- Party-Groesse: `PartyBase.MainParty.NumberOfAllMembers`
-- Viehzahl: `ItemRoster.NumberOfLivestockAnimals`
-- Gewicht/Kapazitaet: mit Warsails-Flotten-Sonderfall (`WarsailsHelper`)
+### Buy
+
+- Buy cheap regular riding up to the speed target (as in v1).
+- Optional (setting): buy war/noble to enable pending upgrades - a separate, cautious
+  path, not for speed.
+- Keep respecting the fleet capacity cap.
+
+## Implementation phases
+
+- **Phase A - categories + reserves** (core of this note):
+  `MountKind` classification, upgrade-reserve calculation, snapshot v2 (per category),
+  advisor v2 (sell true surplus only, keep buy target), pack animals in the herd maths.
+  Extend the connector with category/upgrade getters.
+- **Phase B - refactor + tests**: pull mount handling out of `CanBuy`/`CanSell` into a
+  testable `MountTradingStrategy` (author's TODO "too many return statements"); unit tests
+  for the advisor (uses the existing `AutoTraderTests` architecture).
+- **Phase C - MCM UI**: move settings to MCM attributes (instead of the 87 KB prefab +
+  39 KB view model + 200 lines of XML serialization); the new mount settings are exposed
+  automatically. First re-check the native lock/filter usage so no feature is lost.
+- **Phase D - cleanup/calibration**: remove dead code + unused config; calibrate the speed
+  factors against the decompiled `DefaultPartySpeedCalculatingModel`.
+
+## API anchors (confirmed so far)
+
+- Trading: `TransferCommand.Transfer(...)` + `InventoryLogic`.
+- Party/inventory: `PartyBase.MainParty.MemberRoster` (TroopRoster),
+  `...MobileParty.ItemRoster` (ItemRoster), `ItemRoster.NumberOfLivestockAnimals`.
+- Weight/capacity: `GetCurrentWeight`/`GetInventoryCapacity` (with Warsails fleet).
+- Upgrade: `CharacterObject.UpgradeTargets`, `UpgradeRequiresItemFromCategory` (verify).

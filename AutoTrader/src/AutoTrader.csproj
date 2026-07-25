@@ -211,7 +211,7 @@
   <!-- Post-build: Copy to Bannerlord Modules directory with correct structure -->
   <Target Name="CopyToBannerlord" AfterTargets="Build">
     <PropertyGroup>
-      <ModOutputPath>$(BannerlordModulesPath)\AutoTrader</ModOutputPath>
+      <ModOutputPath>$(BannerlordModulesPath)\AutoTraderSpeed</ModOutputPath>
     </PropertyGroup>
     <!-- Create directory structure -->
     <MakeDir Directories="$(ModOutputPath);$(ModOutputPath)\bin\Win64_Shipping_Client" />

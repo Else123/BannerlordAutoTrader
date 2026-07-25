@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Module>
-	<Name value = "AutoTrader"/>
-	<Id value = "AutoTrader"/>
+	<Name value = "AutoTrader Speed (Dev)"/>
+	<Id value = "AutoTraderSpeed"/>
 	<Version value = "v1.4.6"/>
 	<SingleplayerModule value="true"/>
 	<MultiplayerModule value="false"/>
