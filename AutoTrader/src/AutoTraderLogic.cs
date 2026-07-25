@@ -526,7 +526,7 @@ namespace AutoTrader
             }
 
             // Hardwood
-            if (AutoTraderSpecialRules.CheckBuyResupplyHardwoodRule(_logicConnector, amount))
+            if (AutoTraderSpecialRules.ShouldBuyHardwood(_logicConnector))
             {
                 AutoTraderHelpers.PrintDebugMessage("- buying hardwood to resupply");
                 return CheckBasicBuyRequirements(amount, buyoutPrice); ;
@@ -766,7 +766,7 @@ namespace AutoTrader
             }
 
             // Special hardwood rule
-            if (AutoTraderSpecialRules.CheckBuyResupplyHardwoodRule(_logicConnector, amount))
+            if (AutoTraderSpecialRules.ShouldKeepHardwood(_logicConnector))
             {
                 AutoTraderHelpers.PrintDebugMessage("- do not sell because we dont have enough hardwood");
                 return false;                

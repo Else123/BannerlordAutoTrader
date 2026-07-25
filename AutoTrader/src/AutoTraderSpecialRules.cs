@@ -41,12 +41,25 @@ namespace AutoTrader
             return false;
         }
 
-        // Resupply hardwood
-        public static bool CheckBuyResupplyHardwoodRule(ILogicConnector logicConnector, int currentAmount)
+        // Hardwood stock, governed by one target (SmeltHardwoodTargetValue) for both supply routes.
+        // Note both rules compare the PARTY's hardwood, not the amount on offer.
+
+        /// <summary>Buy hardwood directly while below the target ("Buy hardwood" / "Both" modes).</summary>
+        public static bool ShouldBuyHardwood(ILogicConnector logicConnector)
         {
-            if (AutoTraderConfig.ResupplyHardwoodValue && logicConnector.IsItemHardwood())
-                return currentAmount < AutoTraderConfig.KeepConsumablesMinValue;
-            return false;
+            if (!AutoTraderConfig.ResupplyHardwoodValue || !logicConnector.IsItemHardwood())
+                return false;
+            return logicConnector.GetHardwoodCount() < AutoTraderConfig.SmeltHardwoodTargetValue;
+        }
+
+        /// <summary>Keep hardwood while any supply mode is active and the target is not reached.</summary>
+        public static bool ShouldKeepHardwood(ILogicConnector logicConnector)
+        {
+            if (!logicConnector.IsItemHardwood())
+                return false;
+            if (!AutoTraderConfig.ResupplyHardwoodValue && !AutoTraderConfig.BuySmeltablesForHardwoodValue)
+                return false;
+            return logicConnector.GetHardwoodCount() < AutoTraderConfig.SmeltHardwoodTargetValue;
         }
 
         /// <summary>

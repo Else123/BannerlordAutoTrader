@@ -5,22 +5,27 @@ using MCM.Abstractions.Attributes;
 using MCM.Abstractions.Attributes.v2;
 using MCM.Abstractions.Base;
 using MCM.Abstractions.Base.Global;
+using MCM.Common;
 
 namespace AutoTrader
 {
     /// <summary>
-    /// Mod Configuration Menu (MCM) settings page for AutoTrader. MCM auto-discovers this
-    /// attribute-based class and renders the settings screen; <see cref="Apply"/> bridges the
-    /// values into the static <see cref="AutoTraderConfig"/> that the trading logic reads.
-    /// This is the single configuration surface (the old bespoke config screen was removed).
+    /// Mod Configuration Menu (MCM) settings page for AutoTrader - the single configuration
+    /// surface. This is the user-facing model; <see cref="AutoTraderConfig"/> stays the internal
+    /// effective configuration that the trading logic reads, and <see cref="Apply"/> translates
+    /// between them.
     ///
-    /// GroupOrder controls the order of the sections; Order sorts the settings within a
-    /// section (MCM sorts alphabetically otherwise). MCM renders one setting per row - a
-    /// multi-column/compact layout is not configurable from here.
+    /// Design rules for this page:
+    ///  - One decision has exactly one owner. Where several flags used to govern the same thing
+    ///    (livestock, hardwood supply, pack animals) there is now a single mode selector, so no
+    ///    setting can silently cancel another.
+    ///  - Mode selectors instead of booleans that quietly disable other settings. Where a value
+    ///    only applies in one mode, the hint says so.
+    ///  - All animal decisions live in the Animals section, not spread across Buy and Sell.
     /// </summary>
     public sealed class AutoTraderMcmSettings : AttributeGlobalSettings<AutoTraderMcmSettings>
     {
-        public override string Id => "AutoTraderSpeed_v1";
+        public override string Id => "AutoTraderSpeed_v2";
 
         public override string DisplayName => "AutoTrader Speed (Dev)";
 
@@ -28,223 +33,223 @@ namespace AutoTrader
 
         public override string FormatType => "json2";
 
-        private const string GeneralGroup = "General";
-        private const string BuySellGroup = "Buy & Sell";
-        private const string PricesGroup = "Prices & Tiers";
-        private const string KeepGroup = "Keep Amounts";
-        private const string SmithingGroup = "Smithing";
-        private const string MountsGroup = "Speed-Aware Mounts";
+        private const string PricingGroup = "1. Pricing";
+        private const string BudgetGroup = "2. Budget & Capacity";
+        private const string GoodsGroup = "3. Goods & Equipment";
+        private const string SuppliesGroup = "4. Supplies";
+        private const string AnimalsGroup = "5. Animals";
+        private const string SmithingGroup = "6. Smithing";
+        private const string DiagnosticsGroup = "7. Diagnostics";
 
-        // --- General (section 0) --------------------------------------------
+        // Mode option lists. Mapping uses SelectedIndex, so the labels can be reworded freely.
+        private static readonly string[] PricingModes = { "Trade rumours (smart)", "Fixed thresholds" };
+        private static readonly string[] ScanModes = { "Nearby towns only", "All towns (weighted)" };
+        private static readonly string[] CargoBases = { "Party inventory", "Fleet cargo only (War Sails)" };
+        private static readonly string[] MountModes = { "Off (manual toggles)", "Speed-optimal" };
+        private static readonly string[] PackPolicies = { "Keep all", "Sell surplus" };
+        private static readonly string[] LivestockPolicies = { "Keep", "Sell surplus", "Sell all (junk)" };
+        private static readonly string[] HardwoodSupplies = { "Off", "Buy hardwood", "Buy smeltable weapons", "Both" };
 
-        [SettingPropertyBool("Simple trading AI", Order = 0, RequireRestart = false,
-            HintText = "Use the simpler trade-rumour-based decision logic.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public bool SimpleTradingAI { get; set; } = true;
+        private static Dropdown<string> Choice(string[] values, int index)
+        {
+            return new Dropdown<string>(values, index);
+        }
 
-        [SettingPropertyBool("Use weighted value", Order = 1, RequireRestart = false,
-            HintText = "Weight profitability by item value.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public bool UseWeightedValue { get; set; } = false;
+        // --- 1. Pricing ------------------------------------------------------
 
-        [SettingPropertyInteger("Search radius", 0, 1000, "0", Order = 2, RequireRestart = false,
-            HintText = "How far to scan other towns for price comparisons.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public int SearchRadius { get; set; } = 300;
+        [SettingPropertyDropdown("Pricing mode", Order = 0, RequireRestart = false,
+            HintText = "Trade rumours: judge prices from what your party knows. Fixed thresholds: use the two sliders below.")]
+        [SettingPropertyGroup(PricingGroup, GroupOrder = 0)]
+        public Dropdown<string> PricingMode { get; set; } = Choice(PricingModes, 0);
 
-        [SettingPropertyInteger("Keep wages (days)", 0, 30, "0", Order = 3, RequireRestart = false,
-            HintText = "Reserve enough gold to pay this many days of troop wages.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public int KeepWages { get; set; } = 3;
-
-        [SettingPropertyInteger("Max capacity (%)", 0, 100, "0", Order = 4, RequireRestart = false,
-            HintText = "Stop buying a good once it occupies this percent of capacity.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public int MaxCapacity { get; set; } = 15;
-
-        [SettingPropertyInteger("Use inventory space (%)", 0, 100, "0", Order = 5, RequireRestart = false,
-            HintText = "How much of the inventory capacity the trader may fill.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public int UseInventorySpace { get; set; } = 90;
-
-        [SettingPropertyBool("Use fleet capacity (War Sails)", Order = 6, RequireRestart = false,
-            HintText = "Only count ship cargo capacity for weight limits.")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public bool UseMaxFleetCapacity { get; set; } = false;
-
-        [SettingPropertyBool("Debug logging", Order = 7, RequireRestart = false,
-            HintText = "Write detailed decisions to AutoTrader.log (slows trading down).")]
-        [SettingPropertyGroup(GeneralGroup, GroupOrder = 0)]
-        public bool DebugMode { get; set; } = false;
-
-        // --- Buy & Sell (section 1), paired buy/sell ------------------------
-
-        [SettingPropertyBool("Buy goods", Order = 0, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool BuyGoods { get; set; } = true;
-
-        [SettingPropertyBool("Sell goods", Order = 1, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool SellGoods { get; set; } = true;
-
-        [SettingPropertyBool("Buy consumables", Order = 2, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool BuyConsumables { get; set; } = true;
-
-        [SettingPropertyBool("Sell consumables", Order = 3, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool SellConsumables { get; set; } = true;
-
-        [SettingPropertyBool("Buy weapons", Order = 4, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool BuyWeapons { get; set; } = false;
-
-        [SettingPropertyBool("Sell weapons", Order = 5, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool SellWeapons { get; set; } = true;
-
-        [SettingPropertyBool("Buy armor", Order = 6, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool BuyArmor { get; set; } = false;
-
-        [SettingPropertyBool("Sell armor", Order = 7, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool SellArmor { get; set; } = true;
-
-        [SettingPropertyBool("Buy livestock", Order = 8, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool BuyLivestock { get; set; } = false;
-
-        [SettingPropertyBool("Sell livestock", Order = 9, RequireRestart = false)]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool SellLivestock { get; set; } = true;
-
-        [SettingPropertyBool("Buy pack animals", Order = 10, RequireRestart = false,
-            HintText = "Buy pack animals (mules/sumpters) for carry capacity.")]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool BuyHorses { get; set; } = true;
-
-        [SettingPropertyBool("Sell horses (legacy)", Order = 11, RequireRestart = false,
-            HintText = "Allow selling horses when speed-aware mount trading is OFF. With it on, the mount plan decides.")]
-        [SettingPropertyGroup(BuySellGroup, GroupOrder = 1)]
-        public bool SellHorses { get; set; } = false;
-
-        // --- Prices & Tiers (section 2) -------------------------------------
-
-        [SettingPropertyInteger("Buy threshold (%)", 0, 200, "0", Order = 0, RequireRestart = false,
-            HintText = "Buy when the price is at or below this percent of the average.")]
-        [SettingPropertyGroup(PricesGroup, GroupOrder = 2)]
+        [SettingPropertyInteger("Buy threshold (%)", 0, 200, "0", Order = 1, RequireRestart = false,
+            HintText = "Only used in 'Fixed thresholds' mode: buy at or below this percent of the average price.")]
+        [SettingPropertyGroup(PricingGroup, GroupOrder = 0)]
         public int BuyThreshold { get; set; } = 90;
 
-        [SettingPropertyInteger("Sell threshold (%)", 0, 300, "0", Order = 1, RequireRestart = false,
-            HintText = "Sell when the price is at or above this percent of the average.")]
-        [SettingPropertyGroup(PricesGroup, GroupOrder = 2)]
+        [SettingPropertyInteger("Sell threshold (%)", 0, 300, "0", Order = 2, RequireRestart = false,
+            HintText = "Only used in 'Fixed thresholds' mode: sell at or above this percent of the average price.")]
+        [SettingPropertyGroup(PricingGroup, GroupOrder = 0)]
         public int SellThreshold { get; set; } = 100;
 
-        [SettingPropertyInteger("Weapons/armor tier", 1, 6, "0", Order = 2, RequireRestart = false,
-            HintText = "Sell weapons/armor up to this tier.")]
-        [SettingPropertyGroup(PricesGroup, GroupOrder = 2)]
-        public int WeaponsArmorTier { get; set; } = 2;
+        [SettingPropertyDropdown("Price scan", Order = 3, RequireRestart = false,
+            HintText = "Which settlements are compared for prices. 'All towns' ignores the radius below.")]
+        [SettingPropertyGroup(PricingGroup, GroupOrder = 0)]
+        public Dropdown<string> ScanMode { get; set; } = Choice(ScanModes, 0);
 
-        // --- Keep Amounts (section 3) ---------------------------------------
+        [SettingPropertyInteger("Search radius", 0, 999, "0", Order = 4, RequireRestart = false,
+            HintText = "Only used in 'Nearby towns only' mode.")]
+        [SettingPropertyGroup(PricingGroup, GroupOrder = 0)]
+        public int SearchRadius { get; set; } = 300;
 
-        [SettingPropertyInteger("Keep grains min", 0, 500, "0", Order = 0, RequireRestart = false)]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
-        public int KeepGrainsMin { get; set; } = 10;
+        // --- 2. Budget & Capacity -------------------------------------------
 
-        [SettingPropertyInteger("Keep grains max", 0, 500, "0", Order = 1, RequireRestart = false)]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
-        public int KeepGrainsMax { get; set; } = 100;
+        [SettingPropertyInteger("Keep wages (days)", 0, 30, "0", Order = 0, RequireRestart = false,
+            HintText = "Reserve enough gold to pay this many days of troop wages.")]
+        [SettingPropertyGroup(BudgetGroup, GroupOrder = 1)]
+        public int KeepWages { get; set; } = 3;
 
-        [SettingPropertyInteger("Keep consumables min", 0, 100, "0", Order = 2, RequireRestart = false)]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
-        public int KeepConsumablesMin { get; set; } = 4;
+        [SettingPropertyInteger("Max total capacity used (%)", 0, 100, "0", Order = 1, RequireRestart = false,
+            HintText = "How much of the cargo capacity the trader may fill in total.")]
+        [SettingPropertyGroup(BudgetGroup, GroupOrder = 1)]
+        public int MaxTotalCapacity { get; set; } = 90;
 
-        [SettingPropertyInteger("Keep consumables max", 0, 200, "0", Order = 3, RequireRestart = false)]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
-        public int KeepConsumablesMax { get; set; } = 20;
+        [SettingPropertyInteger("Max share per good (%)", 0, 100, "0", Order = 2, RequireRestart = false,
+            HintText = "Stop buying a single good once it occupies this share of the capacity.")]
+        [SettingPropertyGroup(BudgetGroup, GroupOrder = 1)]
+        public int MaxSharePerGood { get; set; } = 15;
 
-        [SettingPropertyBool("Resupply consumables", Order = 4, RequireRestart = false,
-            HintText = "Rebuy food/consumables down to the minimum.")]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
+        [SettingPropertyDropdown("Cargo basis", Order = 3, RequireRestart = false,
+            HintText = "Which capacity counts for weight limits. Fleet mode requires ships (War Sails).")]
+        [SettingPropertyGroup(BudgetGroup, GroupOrder = 1)]
+        public Dropdown<string> CargoBasis { get; set; } = Choice(CargoBases, 0);
+
+        // --- 3. Goods & Equipment -------------------------------------------
+
+        [SettingPropertyBool("Buy trade goods", Order = 0, RequireRestart = false)]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool BuyGoods { get; set; } = true;
+
+        [SettingPropertyBool("Sell trade goods", Order = 1, RequireRestart = false)]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool SellGoods { get; set; } = true;
+
+        [SettingPropertyBool("Buy weapons", Order = 2, RequireRestart = false,
+            HintText = "Buy weapons for resale. Buying smelt fodder is configured under Supplies.")]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool BuyWeapons { get; set; } = false;
+
+        [SettingPropertyBool("Sell weapons", Order = 3, RequireRestart = false)]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool SellWeapons { get; set; } = true;
+
+        [SettingPropertyBool("Buy armor", Order = 4, RequireRestart = false)]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool BuyArmor { get; set; } = false;
+
+        [SettingPropertyBool("Sell armor", Order = 5, RequireRestart = false)]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool SellArmor { get; set; } = true;
+
+        [SettingPropertyInteger("Sell equipment up to tier", 1, 6, "0", Order = 6, RequireRestart = false,
+            HintText = "Weapons and armor above this tier are kept.")]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public int SellUpToTier { get; set; } = 2;
+
+        // --- 4. Supplies -----------------------------------------------------
+
+        [SettingPropertyBool("Buy food", Order = 0, RequireRestart = false)]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public bool BuyConsumables { get; set; } = true;
+
+        [SettingPropertyBool("Sell surplus food", Order = 1, RequireRestart = false,
+            HintText = "Sell food above the maximum amounts below.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public bool SellConsumables { get; set; } = true;
+
+        [SettingPropertyBool("Restock food automatically", Order = 2, RequireRestart = false,
+            HintText = "Rebuy food up to the minimum amounts below.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public bool Resupply { get; set; } = true;
 
-        [SettingPropertyBool("Resupply hardwood", Order = 5, RequireRestart = false,
-            HintText = "Keep hardwood stocked for smithing.")]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
-        public bool ResupplyHardwood { get; set; } = false;
+        [SettingPropertyInteger("Keep grain: min", 0, 500, "0", Order = 3, RequireRestart = false)]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int KeepGrainsMin { get; set; } = 10;
 
-        [SettingPropertyBool("Junk cattle", Order = 6, RequireRestart = false,
-            HintText = "Treat cattle as junk and sell them.")]
-        [SettingPropertyGroup(KeepGroup, GroupOrder = 3)]
-        public bool JunkCattle { get; set; } = false;
+        [SettingPropertyInteger("Keep grain: max", 0, 500, "0", Order = 4, RequireRestart = false)]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int KeepGrainsMax { get; set; } = 100;
 
-        // --- Smithing (section 4) -------------------------------------------
+        [SettingPropertyInteger("Keep other food: min", 0, 100, "0", Order = 5, RequireRestart = false)]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int KeepConsumablesMin { get; set; } = 4;
 
-        [SettingPropertyBool("Sell smithing materials", Order = 0, RequireRestart = false)]
-        [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
-        public bool SellSmithing { get; set; } = false;
+        [SettingPropertyInteger("Keep other food: max", 0, 200, "0", Order = 6, RequireRestart = false)]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int KeepConsumablesMax { get; set; } = 20;
 
-        [SettingPropertyBool("Keep crafted weapons (for smelting)", Order = 1, RequireRestart = false,
-            HintText = "Do not sell player-crafted weapons.")]
-        [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
-        public bool KeepSmelting { get; set; } = false;
+        [SettingPropertyDropdown("Hardwood supply", Order = 7, RequireRestart = false,
+            HintText = "How to keep hardwood stocked for smithing: buy it directly, buy cheap weapons that smelt into it, or both.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public Dropdown<string> HardwoodSupply { get; set; } = Choice(HardwoodSupplies, 0);
 
-        [SettingPropertyBool("Buy smeltable weapons for hardwood", Order = 2, RequireRestart = false,
-            HintText = "Buy cheap weapons that smelt into hardwood, but only while hardwood is below the target.")]
-        [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
-        public bool BuySmeltablesForHardwood { get; set; } = false;
+        [SettingPropertyInteger("Hardwood target", 0, 500, "0", Order = 8, RequireRestart = false,
+            HintText = "Keep buying hardwood (or smelt fodder) until the party holds this much.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int HardwoodTarget { get; set; } = 100;
 
-        [SettingPropertyInteger("Hardwood stock target", 0, 500, "0", Order = 3, RequireRestart = false,
-            HintText = "Buy smeltable weapons until party hardwood reaches this amount.")]
-        [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
-        public int SmeltHardwoodTarget { get; set; } = 100;
+        // --- 5. Animals (single owner of every animal decision) --------------
 
-        // --- Speed-Aware Mounts (section 5) ---------------------------------
-
-        [SettingPropertyBool("Enable speed-aware mount trading", Order = 0, RequireRestart = false,
-            HintText = "Trade mounts so party speed stays optimal without over-buying animals.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
-        public bool SpeedAwareMounts { get; set; } = true;
+        [SettingPropertyDropdown("Mount management", Order = 0, RequireRestart = false,
+            HintText = "Speed-optimal keeps one spare mount per foot soldier and sheds the rest. Off falls back to the manual toggles below.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public Dropdown<string> MountManagement { get; set; } = Choice(MountModes, 1);
 
         [SettingPropertyBool("Reserve mounts for troop upgrades", Order = 1, RequireRestart = false,
-            HintText = "Keep war/noble mounts that pending troop upgrades need instead of selling them.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+            HintText = "Keep war/noble mounts that pending troop upgrades need.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
         public bool ReserveUpgradeMounts { get; set; } = true;
 
-        [SettingPropertyBool("Sell surplus noble mounts", Order = 2, RequireRestart = false,
-            HintText = "Allow selling surplus noble mounts (off: noble mounts are the most valuable).")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
-        public bool SellNobleMounts { get; set; } = false;
-
-        [SettingPropertyBool("Sell surplus pack animals", Order = 3, RequireRestart = false,
-            HintText = "Sell mules/sumpters above the herd allowance - too many animals slow the party down.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
-        public bool ManagePackAnimalHerd { get; set; } = true;
-
-        [SettingPropertyInteger("Keep mounts worth at least", 0, 20000, "0", Order = 4, RequireRestart = false,
-            HintText = "Never sell a mount priced at or above this value - protects unique/named mounts. 0 disables.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        [SettingPropertyInteger("Keep mounts worth at least", 0, 20000, "0", Order = 2, RequireRestart = false,
+            HintText = "Never sell a mount at or above this price - protects unique and named mounts. 0 disables.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
         public int KeepMountsAboveValue { get; set; } = 2000;
 
-        [SettingPropertyBool("Protect pack animals", Order = 7, RequireRestart = false,
-            HintText = "Never sell pack animals (mules/sumpters), not even as herd surplus.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
-        public bool ProtectPackAnimals { get; set; } = false;
+        [SettingPropertyBool("Sell surplus noble mounts", Order = 3, RequireRestart = false,
+            HintText = "Noble mounts are the rarest upgrade material; off by default.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public bool SellNobleMounts { get; set; } = false;
 
-        [SettingPropertyBool("Sell surplus livestock", Order = 5, RequireRestart = false,
-            HintText = "Sell cattle/sheep above the herd allowance - they slow the party down and carry nothing.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
-        public bool ManageLivestockHerd { get; set; } = true;
+        [SettingPropertyBool("Sell horses (manual mode)", Order = 4, RequireRestart = false,
+            HintText = "Only used when Mount management is Off.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public bool SellHorses { get; set; } = false;
 
-        [SettingPropertyInteger("Keep livestock (food reserve)", 0, 200, "0", Order = 6, RequireRestart = false,
-            HintText = "Livestock to keep regardless of the herd penalty.")]
-        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        [SettingPropertyBool("Buy pack animals", Order = 5, RequireRestart = false,
+            HintText = "Buy mules/sumpters for cargo capacity.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public bool BuyPackAnimals { get; set; } = true;
+
+        [SettingPropertyDropdown("Pack animals", Order = 6, RequireRestart = false,
+            HintText = "Surplus pack animals slow the party down, but each one also carries a lot of cargo - sales stop before the party would be overburdened.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public Dropdown<string> PackAnimalPolicy { get; set; } = Choice(PackPolicies, 1);
+
+        [SettingPropertyBool("Buy livestock", Order = 7, RequireRestart = false)]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public bool BuyLivestock { get; set; } = false;
+
+        [SettingPropertyDropdown("Livestock", Order = 8, RequireRestart = false,
+            HintText = "Cattle/sheep add to the herd penalty and carry nothing. 'Sell surplus' keeps the food reserve below.")]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
+        public Dropdown<string> LivestockPolicy { get; set; } = Choice(LivestockPolicies, 1);
+
+        [SettingPropertyInteger("Keep livestock (food reserve)", 0, 200, "0", Order = 9, RequireRestart = false)]
+        [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
         public int KeepLivestockReserve { get; set; } = 5;
 
+        // --- 6. Smithing -----------------------------------------------------
+
+        [SettingPropertyBool("Sell smithing materials", Order = 0, RequireRestart = false,
+            HintText = "Off keeps ore, ingots, charcoal and hardwood for crafting.")]
+        [SettingPropertyGroup(SmithingGroup, GroupOrder = 5)]
+        public bool SellSmithing { get; set; } = false;
+
+        [SettingPropertyBool("Keep crafted weapons", Order = 1, RequireRestart = false,
+            HintText = "Keeps every weapon that can be smelted, including your own crafted ones. Turn off if you craft to sell.")]
+        [SettingPropertyGroup(SmithingGroup, GroupOrder = 5)]
+        public bool KeepSmelting { get; set; } = false;
+
+        // --- 7. Diagnostics --------------------------------------------------
+
+        [SettingPropertyBool("Debug logging", Order = 0, RequireRestart = false,
+            HintText = "Write every decision to AutoTrader.log next to AutoTraderConfig.xml. Slows trading down.")]
+        [SettingPropertyGroup(DiagnosticsGroup, GroupOrder = 6)]
+        public bool DebugMode { get; set; } = false;
+
         /// <summary>
-        /// Copies the MCM values into <see cref="AutoTraderConfig"/> when MCM is available.
-        /// Safe no-op if MCM has not registered the settings (Instance is null).
+        /// Translates this page into the effective <see cref="AutoTraderConfig"/> the logic reads.
+        /// Safe no-op when MCM has not registered the settings yet.
         /// </summary>
         public static void Apply()
         {
@@ -254,58 +259,70 @@ namespace AutoTrader
                 return;
             }
 
-            AutoTraderConfig.SimpleTradingAI = s.SimpleTradingAI;
-            AutoTraderConfig.UseWeightedValue = s.UseWeightedValue;
+            // Pricing: rumour mode is index 0, fixed thresholds index 1.
+            AutoTraderConfig.SimpleTradingAI = s.PricingMode.SelectedIndex == 0;
+            AutoTraderConfig.BuyThresholdValue = s.BuyThreshold;
+            AutoTraderConfig.SellThresholdValue = s.SellThreshold;
+            AutoTraderConfig.UseWeightedValue = s.ScanMode.SelectedIndex == 1;
             AutoTraderConfig.SearchRadiusValue = s.SearchRadius;
-            AutoTraderConfig.KeepWagesValue = s.KeepWages;
-            AutoTraderConfig.MaxCapacityValue = s.MaxCapacity;
-            AutoTraderConfig.UseInventorySpaceValue = s.UseInventorySpace;
-            AutoTraderConfig.UseMaxFleetCapacityValue = s.UseMaxFleetCapacity;
-            AutoTraderConfig.DebugMode = s.DebugMode;
 
+            // Budget and capacity.
+            AutoTraderConfig.KeepWagesValue = s.KeepWages;
+            AutoTraderConfig.UseInventorySpaceValue = s.MaxTotalCapacity;
+            AutoTraderConfig.MaxCapacityValue = s.MaxSharePerGood;
+            AutoTraderConfig.UseMaxFleetCapacityValue = s.CargoBasis.SelectedIndex == 1;
+
+            // Goods and equipment.
             AutoTraderConfig.BuyGoodsValue = s.BuyGoods;
             AutoTraderConfig.SellGoodsValue = s.SellGoods;
-            AutoTraderConfig.BuyConsumablesValue = s.BuyConsumables;
-            AutoTraderConfig.SellConsumablesValue = s.SellConsumables;
             AutoTraderConfig.BuyWeaponsValue = s.BuyWeapons;
             AutoTraderConfig.SellWeaponsValue = s.SellWeapons;
             AutoTraderConfig.BuyArmorValue = s.BuyArmor;
             AutoTraderConfig.SellArmorValue = s.SellArmor;
-            AutoTraderConfig.BuyLivestockValue = s.BuyLivestock;
-            AutoTraderConfig.SellLivestockValue = s.SellLivestock;
-            AutoTraderConfig.BuyHorsesValue = s.BuyHorses;
-            AutoTraderConfig.SellHorsesValue = s.SellHorses;
-            AutoTraderConfig.ProtectPackAnimalsValue = s.ProtectPackAnimals;
+            AutoTraderConfig.WeaponsArmorTierValue = s.SellUpToTier;
 
-            AutoTraderConfig.BuyThresholdValue = s.BuyThreshold;
-            AutoTraderConfig.SellThresholdValue = s.SellThreshold;
-            AutoTraderConfig.WeaponsArmorTierValue = s.WeaponsArmorTier;
-
+            // Supplies.
+            AutoTraderConfig.BuyConsumablesValue = s.BuyConsumables;
+            AutoTraderConfig.SellConsumablesValue = s.SellConsumables;
+            AutoTraderConfig.ResupplyValue = s.Resupply;
             AutoTraderConfig.KeepGrainsMinValue = s.KeepGrainsMin;
             AutoTraderConfig.KeepGrainsMaxValue = s.KeepGrainsMax;
             AutoTraderConfig.KeepConsumablesMinValue = s.KeepConsumablesMin;
             AutoTraderConfig.KeepConsumablesMaxValue = s.KeepConsumablesMax;
-            AutoTraderConfig.ResupplyValue = s.Resupply;
-            AutoTraderConfig.ResupplyHardwoodValue = s.ResupplyHardwood;
-            AutoTraderConfig.JunkCattleValue = s.JunkCattle;
 
+            // One hardwood target, two possible acquisition routes.
+            int hardwood = s.HardwoodSupply.SelectedIndex;
+            AutoTraderConfig.ResupplyHardwoodValue = hardwood == 1 || hardwood == 3;
+            AutoTraderConfig.BuySmeltablesForHardwoodValue = hardwood == 2 || hardwood == 3;
+            AutoTraderConfig.SmeltHardwoodTargetValue = s.HardwoodTarget;
+
+            // Animals.
+            AutoTraderConfig.SpeedAwareMountsValue = s.MountManagement.SelectedIndex == 1;
+            AutoTraderConfig.ReserveUpgradeMountsValue = s.ReserveUpgradeMounts;
+            AutoTraderConfig.KeepMountsAboveValueValue = s.KeepMountsAboveValue;
+            AutoTraderConfig.SellNobleMountsValue = s.SellNobleMounts;
+            AutoTraderConfig.SellHorsesValue = s.SellHorses;
+            AutoTraderConfig.BuyHorsesValue = s.BuyPackAnimals;
+            AutoTraderConfig.ProtectPackAnimalsValue = s.PackAnimalPolicy.SelectedIndex == 0;
+            AutoTraderConfig.ManagePackAnimalHerdValue = s.PackAnimalPolicy.SelectedIndex == 1;
+            AutoTraderConfig.BuyLivestockValue = s.BuyLivestock;
+
+            // The livestock policy owns both the sell gate and the herd behaviour, so neither can
+            // silently cancel the other any more.
+            int livestock = s.LivestockPolicy.SelectedIndex;
+            AutoTraderConfig.SellLivestockValue = livestock != 0;
+            AutoTraderConfig.ManageLivestockHerdValue = livestock == 1;
+            AutoTraderConfig.JunkCattleValue = livestock == 2;
+            AutoTraderConfig.KeepLivestockReserveValue = s.KeepLivestockReserve;
+
+            // Smithing and diagnostics.
             AutoTraderConfig.SellSmithingValue = s.SellSmithing;
             AutoTraderConfig.KeepSmeltingValue = s.KeepSmelting;
-            AutoTraderConfig.BuySmeltablesForHardwoodValue = s.BuySmeltablesForHardwood;
-            AutoTraderConfig.SmeltHardwoodTargetValue = s.SmeltHardwoodTarget;
-
-            AutoTraderConfig.SpeedAwareMountsValue = s.SpeedAwareMounts;
-            AutoTraderConfig.ReserveUpgradeMountsValue = s.ReserveUpgradeMounts;
-            AutoTraderConfig.SellNobleMountsValue = s.SellNobleMounts;
-            AutoTraderConfig.ManagePackAnimalHerdValue = s.ManagePackAnimalHerd;
-            AutoTraderConfig.KeepMountsAboveValueValue = s.KeepMountsAboveValue;
-            AutoTraderConfig.ManageLivestockHerdValue = s.ManageLivestockHerd;
-            AutoTraderConfig.KeepLivestockReserveValue = s.KeepLivestockReserve;
+            AutoTraderConfig.DebugMode = s.DebugMode;
         }
 
         // Built-in presets tuned for common playstyles. The player picks one from the preset
-        // dropdown and can fine-tune from there. Only the values that differ from the defaults
-        // are set; everything else keeps the default.
+        // dropdown and can fine-tune from there. Presets set only what differs from the defaults.
         public override IEnumerable<ISettingsPreset> GetBuiltInPresets()
         {
             foreach (ISettingsPreset preset in base.GetBuiltInPresets())
@@ -313,26 +330,25 @@ namespace AutoTrader
                 yield return preset;
             }
 
-            // Merchant: maximize margin - buy clearly below and sell clearly above average,
-            // scan far for price differences, and use the hold for cargo.
+            // Merchant: maximize margin - buy clearly below and sell clearly above average, and
+            // scan far for price differences. Needs the fixed-threshold mode to use the numbers.
             yield return new AutoTraderPreset(Id, "merchant", "Merchant (max margin)", () => new AutoTraderMcmSettings
             {
-                // The thresholds below only apply in threshold mode - the rumour-based mode ignores them.
-                SimpleTradingAI = false,
-                SearchRadius = 600,
-                UseInventorySpace = 100,
-                MaxCapacity = 25,
+                PricingMode = Choice(PricingModes, 1),
                 BuyThreshold = 80,
                 SellThreshold = 120,
+                SearchRadius = 900,
+                MaxTotalCapacity = 100,
+                MaxSharePerGood = 25,
                 BuyLivestock = true,
-                WeaponsArmorTier = 4
+                SellUpToTier = 4
             });
 
-            // Warlord: keep the army fed, funded and fast; do not haul trade goods.
-            yield return new AutoTraderPreset(Id, "warlord", "Warlord", () => new AutoTraderMcmSettings
+            // Warlord: keep the army fed, funded and fast; do not haul trade goods around.
+            yield return new AutoTraderPreset(Id, "warlord", "Warlord (army first)", () => new AutoTraderMcmSettings
             {
                 KeepWages = 7,
-                UseInventorySpace = 60,
+                MaxTotalCapacity = 60,
                 BuyGoods = false,
                 KeepGrainsMin = 20,
                 KeepGrainsMax = 150,
@@ -340,24 +356,24 @@ namespace AutoTrader
                 KeepConsumablesMax = 40
             });
 
-            // Blacksmith: feed the forge - collect cheap smelt fodder and keep materials, but do
-            // sell the crafted output (crafted weapons are the profit, so KeepSmelting stays off;
-            // the cheap fodder is already protected while collecting).
+            // Blacksmith: feed the forge and sell the crafted output (that is where the profit is).
             yield return new AutoTraderPreset(Id, "blacksmith", "Blacksmith (craft & sell)", () => new AutoTraderMcmSettings
             {
-                BuySmeltablesForHardwood = true,
-                SmeltHardwoodTarget = 150,
-                ResupplyHardwood = true,
+                HardwoodSupply = Choice(HardwoodSupplies, 3),
+                HardwoodTarget = 150,
+                SellSmithing = false,
+                KeepSmelting = false,
                 SellWeapons = true,
-                WeaponsArmorTier = 6
+                SellUpToTier = 6
             });
 
-            // Minimalist: only sell battle loot, do not buy for resale or restock.
+            // Minimalist: only sell battle loot, never buy for resale or restock.
             yield return new AutoTraderPreset(Id, "minimalist", "Minimalist (sell loot only)", () => new AutoTraderMcmSettings
             {
                 BuyGoods = false,
                 BuyConsumables = false,
-                Resupply = false
+                Resupply = false,
+                BuyPackAnimals = false
             });
         }
 
