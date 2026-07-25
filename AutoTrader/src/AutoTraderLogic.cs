@@ -31,6 +31,12 @@ namespace AutoTrader
         private int _sellWarBudget;
         private int _sellNobleBudget;
 
+        // Post-trade summary counters (units transacted this run).
+        private int _unitsBought;
+        private int _unitsSold;
+        private int _mountsBought;
+        private int _mountsSold;
+
         public AutoTraderLogic(ILogicConnector logicConnector)
         {
             AutoTraderHelpers.PrintDebugMessage("####### AutoTrader Initialization #######");
@@ -55,6 +61,11 @@ namespace AutoTrader
 
             _soldItems = new List<string>();
             _boughtItems = new List<string>();
+            _unitsBought = 0;
+            _unitsSold = 0;
+            _mountsBought = 0;
+            _mountsSold = 0;
+            int startAvailableGold = _availablePlayerGold;
             _availableMerchantGold = _logicConnector.GetMerchantGold();
             UpdateAvailableInventoryCapacity();
             AutoTraderMcmSettings.Apply();
@@ -76,6 +87,7 @@ namespace AutoTrader
                 Sell();
                 BuyProcess(BuyFilter);
                 Connector.BeginInventoryDisplayRefresh();
+                PrintTradeSummary(_availablePlayerGold - startAvailableGold);
             } catch ( Exception e)
             {
                 AutoTraderHelpers.PrintMessage("My Lord! Something terrible happened to our autotraders! The last we heard of them is:\n" + e.ToString());
@@ -311,12 +323,46 @@ namespace AutoTrader
             return result;
         }
 
+        // Shows a concise on-screen summary of what the trade run did.
+        private void PrintTradeSummary(int netGold)
+        {
+            if (_unitsBought == 0 && _unitsSold == 0)
+            {
+                return;
+            }
+
+            string goldText = (netGold >= 0 ? "+" : "") + netGold.ToString();
+            string summary = $"AutoTrader: sold {_unitsSold}, bought {_unitsBought} items, net {goldText} gold.";
+            if (_mountsBought > 0 || _mountsSold > 0)
+            {
+                summary += $" Mounts +{_mountsBought}/-{_mountsSold}.";
+            }
+            AutoTraderHelpers.PrintMessage(summary);
+        }
+
         private void ProcessTransaction(int buyoutPrice)
         {
             AutoTraderHelpers.PrintDebugMessage("### Processing transaction ###");
             // Update available gold
             _availablePlayerGold += _logicConnector.IsBuying ? -buyoutPrice : buyoutPrice;
             _availableMerchantGold += _logicConnector.IsBuying ? buyoutPrice : -buyoutPrice;
+            bool isMount = _logicConnector.IsHorse();
+            if (_logicConnector.IsBuying)
+            {
+                _unitsBought++;
+                if (isMount)
+                {
+                    _mountsBought++;
+                }
+            }
+            else
+            {
+                _unitsSold++;
+                if (isMount)
+                {
+                    _mountsSold++;
+                }
+            }
 
             // Mark the item
             string name = _logicConnector.GetItemName();
