@@ -67,6 +67,34 @@ namespace SpeedTradingTests
             // mounted-footmen bonus -> keep the mounts.
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 80));
             Assert.False(plan.HasAction);
+            Assert.Equal(0, plan.SellPack); // pack management off by default in this advisor
+        }
+
+        [Fact]
+        public void PackHerdManagement_SellsPackAnimalsAboveAllowance()
+        {
+            var advisor = new PartySpeedAdvisor(managePackHerd: true);
+            // allowance = members - livestock = 100; 130 pack animals -> sell 30, mounts untouched.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 130));
+            Assert.Equal(30, plan.SellPack);
+            Assert.Equal(0, plan.SellRegular);
+        }
+
+        [Fact]
+        public void PackHerdManagement_LivestockReducesThePackAllowance()
+        {
+            var advisor = new PartySpeedAdvisor(managePackHerd: true);
+            // allowance = 100 - 40 livestock = 60; 70 pack -> sell 10.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 70, livestock: 40));
+            Assert.Equal(10, plan.SellPack);
+        }
+
+        [Fact]
+        public void PackHerdManagement_KeepsPackAnimalsWithinAllowance()
+        {
+            var advisor = new PartySpeedAdvisor(managePackHerd: true);
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 40));
+            Assert.Equal(0, plan.SellPack);
         }
 
         [Fact]

@@ -30,6 +30,7 @@ namespace AutoTrader
         private int _sellRegularBudget;
         private int _sellWarBudget;
         private int _sellNobleBudget;
+        private int _sellPackBudget;
 
         // Post-trade summary counters (units transacted this run).
         private int _unitsBought;
@@ -126,6 +127,7 @@ namespace AutoTrader
             _sellRegularBudget = 0;
             _sellWarBudget = 0;
             _sellNobleBudget = 0;
+            _sellPackBudget = 0;
             if (!AutoTraderConfig.SpeedAwareMountsValue)
             {
                 return;
@@ -152,12 +154,15 @@ namespace AutoTrader
                 + " pack=" + snapshot.PackAnimals + " livestock=" + snapshot.Livestock
                 + " reserves w/n=" + warReserve + "/" + nobleReserve);
 
-            PartySpeedAdvisor advisor = new PartySpeedAdvisor(AutoTraderConfig.SellNobleMountsValue);
+            PartySpeedAdvisor advisor = new PartySpeedAdvisor(
+                AutoTraderConfig.SellNobleMountsValue,
+                AutoTraderConfig.ManagePackAnimalHerdValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
             _buyRegularBudget = recommendation.BuyRegular;
             _sellRegularBudget = recommendation.SellRegular;
             _sellWarBudget = recommendation.SellWar;
             _sellNobleBudget = recommendation.SellNoble;
+            _sellPackBudget = recommendation.SellPack;
             AutoTraderHelpers.PrintDebugMessage(" - mount plan: " + recommendation.Reason);
         }
 
@@ -235,6 +240,16 @@ namespace AutoTrader
                 if (profit == buyoutPrice)
                     profit = averagePrice - (float)buyoutPrice;
                 AutoTraderHelpers.PrintDebugMessage(" - final profit: " + profit.ToString());
+
+                // Purpose-driven buys (mounts for speed, smelt fodder) are not bought for resale
+                // profit, so the profit sort is meaningless for them. Rank them first instead -
+                // their own gates in CanBuy still decide whether anything is actually bought.
+                if (_logicConnector.IsHorse()
+                    || (AutoTraderConfig.BuySmeltablesForHardwoodValue && _logicConnector.IsWeapon()))
+                {
+                    profit = float.MaxValue;
+                    AutoTraderHelpers.PrintDebugMessage(" - purpose-driven buy -> prioritized in buy list");
+                }
 
                 AutoTraderHelpers.PrintDebugMessage(" --> adding to buy list!");
                 itemBuyList.Add(new KeyValuePair<string, KeyValuePair<float, float>>(_logicConnector.GetItemName(), new KeyValuePair<float, float>(averagePrice, profit)));
@@ -640,7 +655,14 @@ namespace AutoTrader
             {
                 if (AutoTraderConfig.SpeedAwareMountsValue && _logicConnector.IsPackAnimal())
                 {
-                    // Keep pack animals (carry capacity); do not let the generic price logic dump them.
+                    // Sell pack animals only as herd surplus; otherwise keep them (carry capacity)
+                    // and never let the generic price logic dump them.
+                    if (_sellPackBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
+                    {
+                        _sellPackBudget--;
+                        AutoTraderHelpers.PrintDebugMessage(" - [mount] SELL pack animal as herd surplus");
+                        return true;
+                    }
                     AutoTraderHelpers.PrintDebugMessage("- keep pack animal (carry capacity)");
                     return false;
                 }

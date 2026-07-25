@@ -17,10 +17,12 @@ namespace AutoTrader.SpeedTrading
     public sealed class PartySpeedAdvisor
     {
         private readonly bool _allowNobleSell;
+        private readonly bool _managePackHerd;
 
-        public PartySpeedAdvisor(bool allowNobleSell = false)
+        public PartySpeedAdvisor(bool allowNobleSell = false, bool managePackHerd = false)
         {
             _allowNobleSell = allowNobleSell;
+            _managePackHerd = managePackHerd;
         }
 
         /// <summary>Ridable spare mounts wanted: one per foot soldier (herd-free and gives the bonus).</summary>
@@ -54,14 +56,23 @@ namespace AutoTrader.SpeedTrading
                 rest -= sellNoble;
             }
 
+            // Pack animals (mules) add to the herd penalty independently. When enabled, keep pack
+            // animals only up to the herd allowance (party size minus livestock) and sell the rest.
+            int sellPack = 0;
+            if (_managePackHerd)
+            {
+                int packAllowance = Math.Max(0, p.MemberCount - p.Livestock);
+                sellPack = Math.Max(0, p.PackAnimals - packAllowance);
+            }
+
             string reason;
             if (buyRegular > 0)
             {
                 reason = $"Buy {buyRegular} regular mounts (ridable {ridable}/{target} foot soldiers).";
             }
-            else if (sellRegular + sellWar + sellNoble > 0)
+            else if (sellRegular + sellWar + sellNoble + sellPack > 0)
             {
-                reason = $"Sell surplus mounts reg={sellRegular} war={sellWar} noble={sellNoble} " +
+                reason = $"Sell surplus mounts reg={sellRegular} war={sellWar} noble={sellNoble} pack={sellPack} " +
                     $"(ridable {ridable}, target {target}; reserves war={p.WarUpgradeReserve} noble={p.NobleUpgradeReserve}).";
             }
             else
@@ -69,7 +80,7 @@ namespace AutoTrader.SpeedTrading
                 reason = "Mounts already balanced for speed and upgrades.";
             }
 
-            return new MountRecommendation(buyRegular, sellRegular, sellWar, sellNoble, reason);
+            return new MountRecommendation(buyRegular, sellRegular, sellWar, sellNoble, sellPack, reason);
         }
     }
 }

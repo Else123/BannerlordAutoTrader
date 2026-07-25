@@ -19,18 +19,22 @@ namespace AutoTrader.SpeedTrading
         /// <summary>Noble mounts to sell as surplus, above the upgrade reserve (>= 0).</summary>
         public readonly int SellNoble;
 
+        /// <summary>Pack animals (mules) to sell as herd surplus (>= 0).</summary>
+        public readonly int SellPack;
+
         /// <summary>Human-readable rationale (for log/debug).</summary>
         public readonly string Reason;
 
-        public MountRecommendation(int buyRegular, int sellRegular, int sellWar, int sellNoble, string reason)
+        public MountRecommendation(int buyRegular, int sellRegular, int sellWar, int sellNoble, int sellPack, string reason)
         {
             BuyRegular = buyRegular;
             SellRegular = sellRegular;
             SellWar = sellWar;
             SellNoble = sellNoble;
+            SellPack = sellPack;
             Reason = reason;
         }
 
-        public bool HasAction => BuyRegular > 0 || SellRegular > 0 || SellWar > 0 || SellNoble > 0;
+        public bool HasAction => BuyRegular > 0 || SellRegular > 0 || SellWar > 0 || SellNoble > 0 || SellPack > 0;
     }
 }

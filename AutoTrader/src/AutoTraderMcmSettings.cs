@@ -217,6 +217,11 @@ namespace AutoTrader
         [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
         public bool SellNobleMounts { get; set; } = false;
 
+        [SettingPropertyBool("Sell surplus pack animals", Order = 3, RequireRestart = false,
+            HintText = "Sell mules/sumpters above the herd allowance - too many animals slow the party down.")]
+        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        public bool ManagePackAnimalHerd { get; set; } = true;
+
         /// <summary>
         /// Copies the MCM values into <see cref="AutoTraderConfig"/> when MCM is available.
         /// Safe no-op if MCM has not registered the settings (Instance is null).
@@ -271,6 +276,7 @@ namespace AutoTrader
             AutoTraderConfig.SpeedAwareMountsValue = s.SpeedAwareMounts;
             AutoTraderConfig.ReserveUpgradeMountsValue = s.ReserveUpgradeMounts;
             AutoTraderConfig.SellNobleMountsValue = s.SellNobleMounts;
+            AutoTraderConfig.ManagePackAnimalHerdValue = s.ManagePackAnimalHerd;
         }
 
         // Built-in presets tuned for common playstyles. The player picks one from the preset
@@ -283,13 +289,15 @@ namespace AutoTrader
                 yield return preset;
             }
 
-            // Merchant: maximize trading profit - wide scan, fill the inventory, sell loot.
-            yield return new AutoTraderPreset(Id, "merchant", "Merchant", () => new AutoTraderMcmSettings
+            // Merchant: maximize margin - buy clearly below and sell clearly above average,
+            // scan far for price differences, and use the hold for cargo.
+            yield return new AutoTraderPreset(Id, "merchant", "Merchant (max margin)", () => new AutoTraderMcmSettings
             {
                 SearchRadius = 600,
                 UseInventorySpace = 100,
-                BuyThreshold = 95,
-                SellThreshold = 95,
+                MaxCapacity = 25,
+                BuyThreshold = 80,
+                SellThreshold = 120,
                 BuyLivestock = true,
                 WeaponsArmorTier = 4
             });
