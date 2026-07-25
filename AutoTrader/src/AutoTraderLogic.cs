@@ -611,13 +611,17 @@ namespace AutoTrader
                     return false;
                 }
 
-                // Keep weapons we are collecting to smelt into hardwood.
+                // Keep only cheap smelt-fodder we are collecting for hardwood - not valuable
+                // weapons that merely happen to yield hardwood (those should still be sold).
                 if (AutoTraderConfig.BuySmeltablesForHardwoodValue
-                    && _logicConnector.GetHardwoodCount() < AutoTraderConfig.SmeltHardwoodTargetValue
-                    && _logicConnector.GetCurrentItemHardwoodSmeltYield() > 0)
+                    && _logicConnector.GetHardwoodCount() < AutoTraderConfig.SmeltHardwoodTargetValue)
                 {
-                    AutoTraderHelpers.PrintDebugMessage("- keep weapon: collecting for hardwood smelting");
-                    return false;
+                    int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
+                    if (hardwoodYield > 0 && buyoutPrice <= hardwoodYield * _logicConnector.GetHardwoodUnitValue())
+                    {
+                        AutoTraderHelpers.PrintDebugMessage("- keep cheap weapon: collecting for hardwood smelting");
+                        return false;
+                    }
                 }
 
                 if (_logicConnector.IsItemTierLowerThan((ItemObject.ItemTiers)AutoTraderConfig.WeaponsArmorTierValue))
@@ -634,6 +638,13 @@ namespace AutoTrader
             // Special horse rule
             if (_logicConnector.IsHorse())
             {
+                if (AutoTraderConfig.SpeedAwareMountsValue && _logicConnector.IsPackAnimal())
+                {
+                    // Keep pack animals (carry capacity); do not let the generic price logic dump them.
+                    AutoTraderHelpers.PrintDebugMessage("- keep pack animal (carry capacity)");
+                    return false;
+                }
+
                 // Speed-aware: protect ridable mounts, sell only true surplus per category.
                 if (AutoTraderConfig.SpeedAwareMountsValue && !_logicConnector.IsPackAnimal())
                 {
