@@ -13,8 +13,6 @@ namespace AutoTrader
 
         public static string AutoTraderGameVersion { get; } = "v1.4.6";
 
-        public static int MaxKeepGrainsValue { get; set; } = 500;
-
         public static int BuyThresholdValue { get; set; } = 90;
         public static int SellThresholdValue { get; set; } = 100;
         public static bool SimpleTradingAI { get; set; } = true;
@@ -30,7 +28,6 @@ namespace AutoTrader
         public static int SearchRadiusValue { get; set; } = 300;
         public static int WeaponsArmorTierValue { get; set; } = 2;
 
-        public static bool UseAltATValue { get; set; } = false;
         public static bool SellSmithingValue { get; set; } = false;
         public static bool KeepSmeltingValue { get; set; } = false;
         public static bool ResupplyHardwoodValue { get; set; } = false;
@@ -165,10 +162,6 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.ResupplyValue = Boolean.Parse(textReader.ReadString());
                         }
-                        else if (textReader.Name == "useAltATValue")
-                        {
-                            AutoTraderConfig.UseAltATValue = Boolean.Parse(textReader.ReadString());
-                        }
                         else if (textReader.Name == "junkCattleValue")
                         {
                             AutoTraderConfig.JunkCattleValue = Boolean.Parse(textReader.ReadString());
@@ -287,7 +280,6 @@ namespace AutoTrader
                 textWriter.WriteElementString("searchRadiusValue", AutoTraderConfig.SearchRadiusValue.ToString());
                 textWriter.WriteElementString("weaponsArmorTierValue", AutoTraderConfig.WeaponsArmorTierValue.ToString());
 
-                textWriter.WriteElementString("useAltATValue", AutoTraderConfig.UseAltATValue.ToString());
                 textWriter.WriteElementString("junkCattleValue", AutoTraderConfig.JunkCattleValue.ToString());
                 textWriter.WriteElementString("resupplyValue", AutoTraderConfig.ResupplyValue.ToString());
                 textWriter.WriteElementString("sellSmithingValue", AutoTraderConfig.SellSmithingValue.ToString());

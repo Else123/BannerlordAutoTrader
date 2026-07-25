@@ -182,11 +182,6 @@
     <Compile Include="AutoTraderLogicConnector.cs" />
     <Compile Include="AutoTraderSpecialRules.cs" />
     <Compile Include="AutoTraderSubModule.cs" />
-    <Compile Include="GUI\AutoTradeMainMenuGauntletScreen.cs" />
-    <Compile Include="GUI\AutoTradeMenuGauntletScreen.cs" />
-    <Compile Include="GUI\AutoTraderMenuViewModel.cs" />
-    <Compile Include="GUI\AutoTraderState.cs" />
-    <Compile Include="GUI\IAutoTraderStateHandler.cs" />
     <Compile Include="AutoTraderMcmSettings.cs" />
     <Compile Include="ILogicConnector.cs" />
     <Compile Include="SpeedTrading\PartySnapshot.cs" />
@@ -196,10 +191,6 @@
     <Compile Include="Warsails\WarsailsHelper.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\GUI\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>GUI\%(RecursiveDir)%(Filename)%(Extension)</Link>
-    </None>
     <None Include="..\ModuleData\Languages\module_strings.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>ModuleData\Languages\module_strings.xml</Link>
@@ -226,11 +217,6 @@
     <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ModOutputPath)\bin\Win64_Shipping_Client" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
     <!-- Copy SubModule.xml to root -->
     <Copy SourceFiles="$(ProjectDir)SubModule.xml" DestinationFiles="$(ModOutputPath)\SubModule.xml" />
-    <!-- Copy GUI folder -->
-    <ItemGroup>
-      <GUIFiles Include="$(ProjectDir)..\GUI\**\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(GUIFiles)" DestinationFiles="@(GUIFiles->'$(ModOutputPath)\GUI\%(RecursiveDir)%(Filename)%(Extension)')" />
     <!-- Copy ModuleData folder -->
     <ItemGroup>
       <ModuleDataFiles Include="$(ProjectDir)..\ModuleData\**\*.*" />

@@ -1,23 +1,14 @@
-﻿using TaleWorlds.Core;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Localization;
-using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.Library;
-using TaleWorlds.InputSystem;
-using AutoTrader.GUI;
 
 namespace AutoTrader
 {
     public class AutoTraderSubModule : MBSubModuleBase
     {
 		private AutoTraderLogic _autoTraderLogic;
-
-		public AutoTraderSubModule()
-		{
-			//var harmony = new Harmony("eskalior.autotrader");
-			//harmony.PatchAll(typeof(AutoTraderSubModule).Assembly);
-		}
 
 		protected override void OnSubModuleLoad()
 		{
@@ -29,21 +20,19 @@ namespace AutoTrader
 
 		public override void OnGameInitializationFinished(Game game)
 		{
-			string t_text = AutoTraderConfig.UseAltATValue ? " + T" : "";
-			AutoTraderHelpers.PrintMessage(new TextObject("{=ATStartup01}Thanks for using AutoTrader! Press <ALT + A", null)
-				+ t_text
-				+ new TextObject("{=ATStartup02}> to open the settings menu", null).ToString());
+			AutoTraderHelpers.PrintMessage("Thanks for using AutoTrader! Configure it in Options -> Mod Options (MCM).");
 
 			string fullVersion = ApplicationVersion.FromParametersFile(null).ToString();
 			string[] versionParts = fullVersion.Split('.');
-			string version = versionParts.Length >= 3 
-				? $"{versionParts[0]}.{versionParts[1]}.{versionParts[2]}" 
+			string version = versionParts.Length >= 3
+				? $"{versionParts[0]}.{versionParts[1]}.{versionParts[2]}"
 				: fullVersion;
 
-			if (!version.Equals(AutoTraderConfig.AutoTraderGameVersion)){
+			if (!version.Equals(AutoTraderConfig.AutoTraderGameVersion))
+			{
 				AutoTraderHelpers.PrintMessage(new TextObject("{=ATVersionMismatch01}You are using AutoTrader for ", null).ToString()
 					+ AutoTraderConfig.AutoTraderGameVersion
-					+ new TextObject("{=ATVersionMismatch02} with Bannerlord ", null).ToString() 
+					+ new TextObject("{=ATVersionMismatch02} with Bannerlord ", null).ToString()
 					+ version
 					+ new TextObject("{=ATVersionMismatch03}. If you encounter issues please check the mod page for a fitting version.", null).ToString());
 			}
@@ -54,28 +43,11 @@ namespace AutoTrader
 			}
 		}
 
-		private void OpenSettingsMenu()
-		{
-			Game.Current.GameStateManager.PushState(Game.Current.GameStateManager.CreateState<AutoTraderState>(), 0);
-		}
-
-
 		protected override void OnApplicationTick(float dt)
 		{
 			if (Game.Current != null)
 			{
 				_autoTraderLogic.OnApplicationTick();
-
-				if (!_autoTraderLogic.IsTradingActive
-					&& Input.IsKeyDown(InputKey.LeftAlt)
-					&& Input.IsKeyDown(InputKey.A)
-					&& (!AutoTraderConfig.UseAltATValue || Input.IsKeyDown(InputKey.T))
-					&& Game.Current.GameStateManager.ActiveState.GetType() == typeof(MapState)
-					&& Game.Current.GameStateManager.ActiveState.IsMenuState == false
-					&& Game.Current.GameStateManager.ActiveState.GetType() != typeof(MissionState))
-				{
-					OpenSettingsMenu();
-				}
 			}
 		}
 
@@ -92,6 +64,5 @@ namespace AutoTrader
 		{
 			gameStarterObject.AddBehavior(new TradeBehavior(_autoTraderLogic));
 		}
-
 	}
 }
