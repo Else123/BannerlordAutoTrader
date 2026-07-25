@@ -57,6 +57,7 @@ namespace AutoTrader
             _boughtItems = new List<string>();
             _availableMerchantGold = _logicConnector.GetMerchantGold();
             UpdateAvailableInventoryCapacity();
+            AutoTraderMcmSettings.Apply();
             ComputeMountBudgets();
 
             // Set trading state

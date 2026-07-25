@@ -11,6 +11,9 @@
       Id="Native"
       DependentVersion="v1.4.6"
       Optional="false" />
+    <DependedModule
+      Id="Bannerlord.MBOptionScreen"
+      Optional="false" />
 	</DependedModules>
 	<SubModules>
 		<SubModule>
