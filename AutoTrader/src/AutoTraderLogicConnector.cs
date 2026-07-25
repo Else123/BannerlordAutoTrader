@@ -471,22 +471,36 @@ namespace AutoTrader
             if (doneItems != null && doneItems.Exists(x => x == itemRosterElement.EquipmentElement.Item.Name.ToString()))
                 return true;
 
-            // Exclude horses when buying for now
-            if (AutoTraderHelpers.IsHorse(itemObject) && _isBuying)
-                return true;
-
             // Filter by type
             if (!_isBuying && AutoTraderHelpers.IsSmithingMaterial(itemObject))
             {
                 AutoTraderHelpers.PrintDebugMessage(" - is smithing material");
                 return AutoTraderConfig.SellSmithingValue ? false : true;
-            }   
-            if (AutoTraderHelpers.IsHorse(itemObject) && !(_isBuying ? AutoTraderConfig.BuyHorsesValue : AutoTraderConfig.SellHorsesValue))
-                return true;
+            }
+            if (AutoTraderHelpers.IsHorse(itemObject))
+            {
+                // Speed-aware mount trading decides per-mount in CanBuy/CanSell, so let every
+                // horse through when it is enabled; otherwise use the plain buy/sell toggles.
+                if (!AutoTraderConfig.SpeedAwareMountsValue
+                    && (_isBuying ? !AutoTraderConfig.BuyHorsesValue : !AutoTraderConfig.SellHorsesValue))
+                {
+                    return true;
+                }
+            }
             if (AutoTraderHelpers.IsArmor(itemObject) && !(_isBuying ? AutoTraderConfig.BuyArmorValue : AutoTraderConfig.SellArmorValue))
                 return true;
-            if (AutoTraderHelpers.IsWeapon(itemObject) && !(_isBuying ? AutoTraderConfig.BuyWeaponsValue : AutoTraderConfig.SellWeaponsValue))
-                return true;
+            if (AutoTraderHelpers.IsWeapon(itemObject))
+            {
+                // Allow weapons through on buy when collecting smeltables, so DecideSmeltablePurchase
+                // can evaluate them; CanBuy still declines non-smeltable weapons unless BuyWeapons is on.
+                bool allowWeapon = _isBuying
+                    ? (AutoTraderConfig.BuyWeaponsValue || AutoTraderConfig.BuySmeltablesForHardwoodValue)
+                    : AutoTraderConfig.SellWeaponsValue;
+                if (!allowWeapon)
+                {
+                    return true;
+                }
+            }
             if (AutoTraderHelpers.IsLivestock(itemObject) && !(_isBuying ? AutoTraderConfig.BuyLivestockValue : AutoTraderConfig.SellLivestockValue))
                 return true;
             if (AutoTraderHelpers.IsTradeGood(itemObject) && !(_isBuying ? AutoTraderConfig.BuyGoodsValue : AutoTraderConfig.SellGoodsValue))

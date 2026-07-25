@@ -147,6 +147,11 @@ namespace AutoTrader
                 _logicConnector.GetCurrentWeight(),
                 _logicConnector.GetInventoryCapacity());
 
+            AutoTraderHelpers.PrintDebugMessage(" - [mount] snapshot members=" + snapshot.MemberCount + " foot=" + snapshot.FootTroopCount
+                + " reg=" + snapshot.RegularMounts + " war=" + snapshot.WarMounts + " noble=" + snapshot.NobleMounts
+                + " pack=" + snapshot.PackAnimals + " livestock=" + snapshot.Livestock
+                + " reserves w/n=" + warReserve + "/" + nobleReserve);
+
             PartySpeedAdvisor advisor = new PartySpeedAdvisor(AutoTraderConfig.SellNobleMountsValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
             _buyRegularBudget = recommendation.BuyRegular;
@@ -390,11 +395,18 @@ namespace AutoTrader
             {
                 return false;
             }
-            if (_logicConnector.GetHardwoodCount() >= AutoTraderConfig.SmeltHardwoodTargetValue)
+
+            int hardwood = _logicConnector.GetHardwoodCount();
+            int target = AutoTraderConfig.SmeltHardwoodTargetValue;
+            int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
+            AutoTraderHelpers.PrintDebugMessage(" - [smelt] '" + _logicConnector.GetItemName() + "' price=" + buyoutPrice
+                + " hardwood=" + hardwood + "/" + target + " yield=" + hardwoodYield);
+
+            if (hardwood >= target)
             {
+                AutoTraderHelpers.PrintDebugMessage(" - [smelt] hardwood target reached -> skip");
                 return false;
             }
-            int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
             if (hardwoodYield <= 0)
             {
                 return false;
@@ -402,17 +414,37 @@ namespace AutoTrader
             // Only worth it if the weapon costs no more than the hardwood it yields is worth.
             if (buyoutPrice > hardwoodYield * _logicConnector.GetHardwoodUnitValue())
             {
-                AutoTraderHelpers.PrintDebugMessage(" - smeltable too expensive as a hardwood source");
+                AutoTraderHelpers.PrintDebugMessage(" - [smelt] too expensive as a hardwood source -> skip");
                 return false;
             }
-            AutoTraderHelpers.PrintDebugMessage(" - buying smeltable weapon for hardwood (yield " + hardwoodYield + ")");
+            AutoTraderHelpers.PrintDebugMessage(" - [smelt] BUY smeltable weapon for hardwood");
             return CheckBasicBuyRequirements(amount, buyoutPrice);
+        }
+
+        // Names the current mount's category for logging.
+        private string DescribeMountCategory()
+        {
+            if (_logicConnector.IsPackAnimal())
+            {
+                return "pack";
+            }
+            if (_logicConnector.IsNobleMount())
+            {
+                return "noble";
+            }
+            if (_logicConnector.IsWarMount())
+            {
+                return "war";
+            }
+            return "regular";
         }
 
         // Decides whether to buy the current horse item. Pack animals keep the original
         // resupply rule; only regular riding horses are bought, up to the speed budget.
         private bool DecideHorsePurchase(int amount, int buyoutPrice)
         {
+            AutoTraderHelpers.PrintDebugMessage(" - [mount] consider BUY '" + _logicConnector.GetItemName() + "' ["
+                + DescribeMountCategory() + "] price=" + buyoutPrice + " buyRegularBudget=" + _buyRegularBudget);
             if (_logicConnector.IsPackAnimal())
             {
                 if (AutoTraderSpecialRules.CheckBuyHorsesRules(_logicConnector, buyoutPrice, _availablePlayerGold))
@@ -464,6 +496,13 @@ namespace AutoTrader
             if (DecideSmeltablePurchase(amount, buyoutPrice))
             {
                 return true;
+            }
+            // A weapon only reaches here to be considered as a smeltable; do not buy it via the
+            // generic price logic unless normal weapon buying is enabled.
+            if (_logicConnector.IsWeapon() && !AutoTraderConfig.BuyWeaponsValue)
+            {
+                AutoTraderHelpers.PrintDebugMessage(" - [smelt] weapon not a smeltable buy and BuyWeapons off -> skip");
+                return false;
             }
 
             // Hardwood
@@ -598,6 +637,8 @@ namespace AutoTrader
                 // Speed-aware: protect ridable mounts, sell only true surplus per category.
                 if (AutoTraderConfig.SpeedAwareMountsValue && !_logicConnector.IsPackAnimal())
                 {
+                    AutoTraderHelpers.PrintDebugMessage(" - [mount] consider SELL '" + _logicConnector.GetItemName() + "' ["
+                        + DescribeMountCategory() + "] sellBudget r/w/n=" + _sellRegularBudget + "/" + _sellWarBudget + "/" + _sellNobleBudget);
                     bool isNoble = _logicConnector.IsNobleMount();
                     bool isWar = !isNoble && _logicConnector.IsWarMount();
                     int categoryBudget = isNoble ? _sellNobleBudget : (isWar ? _sellWarBudget : _sellRegularBudget);
