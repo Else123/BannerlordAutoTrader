@@ -75,7 +75,6 @@ namespace AutoTrader
                 BuyProcess(BuyFilter);
                 Sell();
                 BuyProcess(BuyFilter);
-                //BuyHorses();
                 Connector.BeginInventoryDisplayRefresh();
             } catch ( Exception e)
             {
@@ -136,9 +135,7 @@ namespace AutoTrader
                 _logicConnector.GetCurrentWeight(),
                 _logicConnector.GetInventoryCapacity());
 
-            PartySpeedAdvisor advisor = new PartySpeedAdvisor(
-                AutoTraderConfig.HerdThresholdPercentValue,
-                AutoTraderConfig.SellNobleMountsValue);
+            PartySpeedAdvisor advisor = new PartySpeedAdvisor(AutoTraderConfig.SellNobleMountsValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
             _buyRegularBudget = recommendation.BuyRegular;
             _sellRegularBudget = recommendation.SellRegular;
@@ -296,56 +293,6 @@ namespace AutoTrader
                 AutoTraderHelpers.PrintDebugMessage(" - skipping because item is filtered");
             return result;
         }
-
-        //private bool BuyHorseFilter()
-        //{
-        //    if (!_logicConnector.IsHorse())
-        //    {
-        //        AutoTraderHelpers.PrintDebugMessage(" - skipping because item is not horse");
-        //        continue;
-        //    }
-        //}
-
-        //private void BuyHorses()
-        //{
-        //    AutoTraderHelpers.PrintDebugMessage("### Buying Horses ###");
-        //    _logicConnector.IsBuying = true;
-
-        //    // Loop through items
-        //    for (int itemId = 0; itemId < _logicConnector.GetMerchantItemRosterSize(); itemId++)
-        //    {
-        //        AutoTraderHelpers.PrintDebugMessage("-------------------------------------------------------------------");
-        //        AutoTraderHelpers.PrintDebugMessage(" - current item ID: " + itemId.ToString());
-        //        _logicConnector.SetCurrentElementById(itemId);
-        //        // Check if its filtered
-        //        if (!_logicConnector.IsHorse())
-        //        {
-        //            AutoTraderHelpers.PrintDebugMessage(" - skipping because item is not horse");
-        //            continue;
-        //        }
-
-        //        int amount = _logicConnector.GetItemAmount();
-        //        if (amount < 1)
-        //        {
-        //            AutoTraderHelpers.PrintDebugMessage(" - skipping because amount is less than 1");
-        //            continue;
-        //        }
-
-        //        float averagePrice = GetAveragePrice();
-        //        int buyoutPrice = 0;
-
-        //        bool canBuy = false;
-        //        do
-        //        {
-        //            canBuy = CanBuy(averagePrice, 1, out buyoutPrice);
-        //            if (canBuy)
-        //            {
-        //                ProcessTransaction(buyoutPrice);
-        //                amount -= 1;
-        //            }
-        //        } while (canBuy && amount > 0);
-        //    }
-        //}
 
         internal bool SimpleWorthCheck(int value, int buyoutPrice)
         {

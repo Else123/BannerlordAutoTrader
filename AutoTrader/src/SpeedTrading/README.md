@@ -47,10 +47,13 @@ Upgrade demand: `CharacterObject.UpgradeTargets` + `UpgradeRequiresItemFromCateg
 
 ## Decision logic v2
 
-### Herd/speed cap on TOTAL animal count (fixes gap 1)
+### Mount optimum = foot-soldier count (calibrated to DefaultPartySpeedCalculatingModel)
 
-`totalAnimals = pack + riding + war + noble + livestock`. Herd threshold ~
-`MemberCount * factor` applies to `totalAnimals`, not just riding horses.
+Spare mounts up to the number of foot soldiers (`NumberOfMenWithoutHorse`) mount the
+infantry (a speed bonus) and are herd-free. Every mount beyond that is pure herd penalty.
+Pack animals and livestock add to the herd independently and cannot be offset by selling
+mounts, so the mount optimum is exactly `ridable mounts == foot soldiers`. The earlier
+herd-threshold-percent knob was removed (it did not map to the real mechanic).
 
 ### Reserves before selling (fixes gaps 2+3)
 

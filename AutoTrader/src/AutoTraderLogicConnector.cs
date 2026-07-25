@@ -106,26 +106,12 @@ namespace AutoTrader
             return PartyBase.MainParty.MobileParty.ItemRoster.NumberOfLivestockAnimals;
         }
 
-        // Foot soldiers in the party (non-mounted formation classes) - basis for the speed optimum.
+        // Foot soldiers a spare mount can mount - exactly what the vanilla speed model
+        // (DefaultPartySpeedCalculatingModel) uses for the mounted-footmen bonus.
         public int GetNumFootTroops()
         {
-            int count = 0;
-            TroopRoster roster = PartyBase.MainParty.MemberRoster;
-            for (int i = 0; i < roster.Count; i++)
-            {
-                CharacterObject c = roster.GetCharacterAtIndex(i);
-                if (c == null || c.IsHero)
-                {
-                    continue;
-                }
-
-                FormationClass fc = c.DefaultFormationClass;
-                if (fc != FormationClass.Cavalry && fc != FormationClass.HorseArcher)
-                {
-                    count += roster.GetElementNumber(i);
-                }
-            }
-            AutoTraderHelpers.PrintDebugMessage(" - NumFootTroops: " + count.ToString());
+            int count = PartyBase.MainParty.NumberOfMenWithoutHorse;
+            AutoTraderHelpers.PrintDebugMessage(" - NumFootTroops (menWithoutHorse): " + count.ToString());
             return count;
         }
 

@@ -27,12 +27,6 @@ namespace AutoTrader
         [SettingPropertyGroup(MountsGroup)]
         public bool SpeedAwareMounts { get; set; } = true;
 
-        [SettingPropertyInteger("Herd threshold (% of party size)", 80, 150, "0",
-            RequireRestart = false,
-            HintText = "Animals above this percent of the party size cause a speed penalty.")]
-        [SettingPropertyGroup(MountsGroup)]
-        public int HerdThresholdPercent { get; set; } = 105;
-
         [SettingPropertyBool("Reserve mounts for troop upgrades", RequireRestart = false,
             HintText = "Keep war/noble mounts that pending troop upgrades need instead of selling them.")]
         [SettingPropertyGroup(MountsGroup)]
@@ -56,7 +50,6 @@ namespace AutoTrader
             }
 
             AutoTraderConfig.SpeedAwareMountsValue = settings.SpeedAwareMounts;
-            AutoTraderConfig.HerdThresholdPercentValue = settings.HerdThresholdPercent;
             AutoTraderConfig.ReserveUpgradeMountsValue = settings.ReserveUpgradeMounts;
             AutoTraderConfig.SellNobleMountsValue = settings.SellNobleMounts;
         }

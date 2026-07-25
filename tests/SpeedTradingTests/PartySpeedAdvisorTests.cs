@@ -24,23 +24,28 @@ namespace SpeedTradingTests
         }
 
         [Fact]
+        public void SpeedTarget_EqualsFootSoldierCount()
+        {
+            var advisor = new PartySpeedAdvisor();
+            Assert.Equal(150, advisor.SpeedTarget(Snapshot(members: 200, foot: 150)));
+        }
+
+        [Fact]
         public void FootTroopsAndNoMounts_BuysRegularUpToFootCount()
         {
             var advisor = new PartySpeedAdvisor();
-            // threshold = floor(100 * 1.05) = 105; speed target = min(50, 103) = 50.
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 50));
             Assert.Equal(50, plan.BuyRegular);
             Assert.Equal(0, plan.SellRegular);
         }
 
         [Fact]
-        public void SpeedTarget_IsCappedBelowHerdThreshold()
+        public void BuyTarget_IsNotCappedByPartySize()
         {
             var advisor = new PartySpeedAdvisor();
-            // Small party: threshold = floor(10 * 1.05) = 10; safe cap = 10 - 2 = 8.
-            // Foot = 50 but capped to 8.
-            var plan = advisor.Recommend(Snapshot(members: 10, foot: 50));
-            Assert.Equal(8, plan.BuyRegular);
+            // Almost the whole party is on foot; mounting them all is herd-free, so buy all 55.
+            var plan = advisor.Recommend(Snapshot(members: 60, foot: 55));
+            Assert.Equal(55, plan.BuyRegular);
         }
 
         [Fact]
@@ -54,21 +59,22 @@ namespace SpeedTradingTests
         }
 
         [Fact]
-        public void PackAnimalsOverThreshold_ShedRidableSurplus_AndBlockBuying()
+        public void PackAnimals_DoNotForceMountSales()
         {
             var advisor = new PartySpeedAdvisor();
-            // members 100 -> threshold 105. total animals = 50 regular + 80 pack = 130 (over).
+            // Ridable mounts already equal foot soldiers (50). Even with a huge pack herd, selling
+            // mounts would not reduce the herd penalty (pack animals cause it) and would cost the
+            // mounted-footmen bonus -> keep the mounts.
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 50, pack: 80));
-            Assert.Equal(0, plan.BuyRegular);          // capacity for animals is exhausted
-            Assert.Equal(25, plan.SellRegular);        // herd surplus 130-105 = 25
+            Assert.False(plan.HasAction);
         }
 
         [Fact]
         public void WarMounts_ProtectedByUpgradeReserve()
         {
             var advisor = new PartySpeedAdvisor();
-            // all-cavalry party: foot 0 -> speed target 0, so all 30 war are "surplus" for speed,
-            // but 20 are reserved for upgrades -> only 10 sellable. Noble selling off by default.
+            // all-cavalry party: foot 0 -> target 0, so all 40 ridable are surplus, but 20 war are
+            // reserved for upgrades -> only 10 war sellable. Noble selling off by default.
             var plan = advisor.Recommend(Snapshot(members: 100, foot: 0, war: 30, noble: 10,
                 warReserve: 20, nobleReserve: 5));
             Assert.Equal(0, plan.SellRegular);
