@@ -222,6 +222,11 @@ namespace AutoTrader
         [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
         public bool ManagePackAnimalHerd { get; set; } = true;
 
+        [SettingPropertyInteger("Keep mounts worth at least", 0, 20000, "0", Order = 4, RequireRestart = false,
+            HintText = "Never sell a mount priced at or above this value - protects unique/named mounts. 0 disables.")]
+        [SettingPropertyGroup(MountsGroup, GroupOrder = 5)]
+        public int KeepMountsAboveValue { get; set; } = 2000;
+
         /// <summary>
         /// Copies the MCM values into <see cref="AutoTraderConfig"/> when MCM is available.
         /// Safe no-op if MCM has not registered the settings (Instance is null).
@@ -277,6 +282,7 @@ namespace AutoTrader
             AutoTraderConfig.ReserveUpgradeMountsValue = s.ReserveUpgradeMounts;
             AutoTraderConfig.SellNobleMountsValue = s.SellNobleMounts;
             AutoTraderConfig.ManagePackAnimalHerdValue = s.ManagePackAnimalHerd;
+            AutoTraderConfig.KeepMountsAboveValueValue = s.KeepMountsAboveValue;
         }
 
         // Built-in presets tuned for common playstyles. The player picks one from the preset

@@ -48,6 +48,9 @@ namespace AutoTrader
         public static bool SellNobleMountsValue { get; set; } = false;
         // Sell pack animals above the herd allowance (they slow the party down).
         public static bool ManagePackAnimalHerdValue { get; set; } = true;
+        // Never sell a mount priced at or above this value (protects unique/named mounts whose
+        // item category is not war_horse/noble_horse). 0 disables the guard.
+        public static int KeepMountsAboveValueValue { get; set; } = 2000;
         public static bool BuyWeaponsValue { get; set; } = false;
         public static bool SellWeaponsValue { get; set; } = true;
         public static bool BuyArmorValue { get; set; } = false;
@@ -215,6 +218,10 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.ManagePackAnimalHerdValue = Boolean.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "keepMountsAboveValueValue")
+                        {
+                            AutoTraderConfig.KeepMountsAboveValueValue = Int32.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "buyArmorValue")
                         {
                             AutoTraderConfig.BuyArmorValue = Boolean.Parse(textReader.ReadString());
@@ -311,6 +318,7 @@ namespace AutoTrader
                 textWriter.WriteElementString("reserveUpgradeMountsValue", AutoTraderConfig.ReserveUpgradeMountsValue.ToString());
                 textWriter.WriteElementString("sellNobleMountsValue", AutoTraderConfig.SellNobleMountsValue.ToString());
                 textWriter.WriteElementString("managePackAnimalHerdValue", AutoTraderConfig.ManagePackAnimalHerdValue.ToString());
+                textWriter.WriteElementString("keepMountsAboveValueValue", AutoTraderConfig.KeepMountsAboveValueValue.ToString());
                 textWriter.WriteElementString("buyArmorValue", AutoTraderConfig.BuyArmorValue.ToString());
                 textWriter.WriteElementString("sellArmorValue", AutoTraderConfig.SellArmorValue.ToString());
                 textWriter.WriteElementString("buyWeaponsValue", AutoTraderConfig.BuyWeaponsValue.ToString());

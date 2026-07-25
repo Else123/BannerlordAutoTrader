@@ -655,6 +655,13 @@ namespace AutoTrader
             {
                 if (AutoTraderConfig.SpeedAwareMountsValue && _logicConnector.IsPackAnimal())
                 {
+                    // Honor the explicit "protect pack animals" setting even in speed-aware mode.
+                    if (AutoTraderConfig.SellHorsesValue)
+                    {
+                        AutoTraderHelpers.PrintDebugMessage("- keep pack animal (protected by setting)");
+                        return false;
+                    }
+
                     // Sell pack animals only as herd surplus; otherwise keep them (carry capacity)
                     // and never let the generic price logic dump them.
                     if (_sellPackBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
@@ -671,7 +678,19 @@ namespace AutoTrader
                 if (AutoTraderConfig.SpeedAwareMountsValue && !_logicConnector.IsPackAnimal())
                 {
                     AutoTraderHelpers.PrintDebugMessage(" - [mount] consider SELL '" + _logicConnector.GetItemName() + "' ["
-                        + DescribeMountCategory() + "] sellBudget r/w/n=" + _sellRegularBudget + "/" + _sellWarBudget + "/" + _sellNobleBudget);
+                        + DescribeMountCategory() + "] price=" + buyoutPrice
+                        + " sellBudget r/w/n=" + _sellRegularBudget + "/" + _sellWarBudget + "/" + _sellNobleBudget);
+
+                    // Value guard: unique/named mounts are not necessarily in the war/noble item
+                    // categories, so category alone would treat them as ordinary riding horses.
+                    // Never sell a mount worth more than the configured value.
+                    if (AutoTraderConfig.KeepMountsAboveValueValue > 0
+                        && buyoutPrice >= AutoTraderConfig.KeepMountsAboveValueValue)
+                    {
+                        AutoTraderHelpers.PrintDebugMessage("- keep valuable mount (price >= keep-above value)");
+                        return false;
+                    }
+
                     bool isNoble = _logicConnector.IsNobleMount();
                     bool isWar = !isNoble && _logicConnector.IsWarMount();
                     int categoryBudget = isNoble ? _sellNobleBudget : (isWar ? _sellWarBudget : _sellRegularBudget);
