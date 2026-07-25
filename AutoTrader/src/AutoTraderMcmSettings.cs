@@ -258,9 +258,10 @@ namespace AutoTrader
         // --- 7. Diagnostics --------------------------------------------------
 
         [SettingPropertyBool("Debug logging", Order = 0, RequireRestart = false,
-            HintText = "Write every decision to AutoTrader.log next to AutoTraderConfig.xml. Slows trading down.")]
+            HintText = "On by default while this build is being tested. Writes every decision to AutoTrader.log " +
+                "(Configs folder); the previous session is kept as AutoTrader.previous.log. Slows trading down.")]
         [SettingPropertyGroup(DiagnosticsGroup, GroupOrder = 6)]
-        public bool DebugMode { get; set; } = false;
+        public bool DebugMode { get; set; } = true;
 
         /// <summary>
         /// Translates this page into the effective <see cref="AutoTraderConfig"/> the logic reads.

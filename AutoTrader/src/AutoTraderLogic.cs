@@ -79,6 +79,7 @@ namespace AutoTrader
             _availableMerchantGold = _logicConnector.GetMerchantGold();
             UpdateAvailableInventoryCapacity();
             AutoTraderMcmSettings.Apply();
+            LogEffectiveSettings();
             ComputeMountBudgets();
 
             // Set trading state
@@ -126,6 +127,31 @@ namespace AutoTrader
                     "I instructed to load them on our carts but you may want to rethink your orders.").ToString()
                 );
             }
+        }
+
+        // Records what was actually configured for this run, so a log can be read on its own
+        // without also needing the settings file.
+        private void LogEffectiveSettings()
+        {
+            AutoTraderHelpers.PrintDebugMessage(" - [config] pricing=" + (AutoTraderConfig.SimpleTradingAI ? "rumours" : "thresholds")
+                + " buy/sell=" + AutoTraderConfig.BuyThresholdValue + "/" + AutoTraderConfig.SellThresholdValue
+                + " scan=" + (AutoTraderConfig.UseWeightedValue ? "all" : "radius " + AutoTraderConfig.SearchRadiusValue)
+                + " capacity=" + AutoTraderConfig.UseInventorySpaceValue + "% perGood=" + AutoTraderConfig.MaxCapacityValue + "%"
+                + " fleet=" + AutoTraderConfig.UseMaxFleetCapacityValue);
+            AutoTraderHelpers.PrintDebugMessage(" - [config] mounts=" + AutoTraderConfig.SpeedAwareMountsValue
+                + " reserveUpgrades=" + AutoTraderConfig.ReserveUpgradeMountsValue
+                + " keepAbove=" + AutoTraderConfig.KeepMountsAboveValueValue
+                + " sellNoble=" + AutoTraderConfig.SellNobleMountsValue
+                + " buyPack=" + AutoTraderConfig.BuyHorsesValue
+                + " packHerd=" + AutoTraderConfig.ManagePackAnimalHerdValue
+                + " protectPack=" + AutoTraderConfig.ProtectPackAnimalsValue
+                + " livestockHerd=" + AutoTraderConfig.ManageLivestockHerdValue
+                + " livestockReserve=" + AutoTraderConfig.KeepLivestockReserveValue);
+            AutoTraderHelpers.PrintDebugMessage(" - [config] hardwood buy=" + AutoTraderConfig.ResupplyHardwoodValue
+                + " smelt=" + AutoTraderConfig.BuySmeltablesForHardwoodValue
+                + " target=" + AutoTraderConfig.SmeltHardwoodTargetValue
+                + " | warehouse=" + AutoTraderConfig.WarehouseModeValue
+                + " share=" + AutoTraderConfig.ConsignmentSharePercentValue + "%");
         }
 
         // Speed-aware mount trading: determines once per run how many mounts to buy or sell,

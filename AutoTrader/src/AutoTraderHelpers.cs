@@ -15,16 +15,25 @@ namespace AutoTrader
     {
         private static PlatformFilePath debugLogFilePath = new PlatformFilePath(EngineFilePaths.ConfigsPath, "AutoTrader.log");
 
+        // The log restarts with every game launch. Keep the previous run around so a session can
+        // still be analysed after a restart.
+        private static PlatformFilePath previousLogFilePath = new PlatformFilePath(EngineFilePaths.ConfigsPath, "AutoTrader.previous.log");
+
         public static void Initialize()
         {
             if (FileHelper.FileExists(AutoTraderHelpers.debugLogFilePath))
             {
+                string previous = FileHelper.GetFileContentString(AutoTraderHelpers.debugLogFilePath);
+                if (!string.IsNullOrEmpty(previous))
+                {
+                    FileHelper.SaveFileString(previousLogFilePath, previous);
+                }
                 FileHelper.DeleteFile(AutoTraderHelpers.debugLogFilePath);
             }
-            FileHelper.SaveFileString(debugLogFilePath, "AutoTrader log");
+            FileHelper.SaveFileString(debugLogFilePath, "AutoTrader log - " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             FileHelper.AppendLineToFileString(debugLogFilePath, "------------------------------------------------------------------------------");
-            FileHelper.AppendLineToFileString(debugLogFilePath, "For detailed info, add <debugMode>True</debugMode> to the AutoTraderConfig.xml");
-            FileHelper.AppendLineToFileString(debugLogFilePath, "WARNING: Debug mode is will drastically slow autotrading!");
+            FileHelper.AppendLineToFileString(debugLogFilePath, "Detailed logging is ON by default in this test build (Options -> Mod Options -> Diagnostics).");
+            FileHelper.AppendLineToFileString(debugLogFilePath, "It slows autotrading down noticeably; the previous session is kept as AutoTrader.previous.log.");
             FileHelper.AppendLineToFileString(debugLogFilePath, "------------------------------------------------------------------------------");
         }
 

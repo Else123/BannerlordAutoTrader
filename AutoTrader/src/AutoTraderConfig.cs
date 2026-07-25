@@ -83,7 +83,9 @@ namespace AutoTrader
         public static int ConsignmentMinPriceValue { get; set; } = 0;
 
         public static int Version { get; set; } = 2;
-        public static bool DebugMode { get; set; } = false;
+        // On by default while this fork is in testing: the decision log is what makes in-game
+        // behaviour diagnosable afterwards.
+        public static bool DebugMode { get; set; } = true;
 
         public static void Initialize()
         {
