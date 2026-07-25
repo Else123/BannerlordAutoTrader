@@ -184,6 +184,8 @@
     <Compile Include="AutoTraderSubModule.cs" />
     <Compile Include="AutoTraderMcmSettings.cs" />
     <Compile Include="ILogicConnector.cs" />
+    <Compile Include="Warehouse\ConsignmentPlanner.cs" />
+    <Compile Include="Warehouse\WarehouseBehavior.cs" />
     <Compile Include="SpeedTrading\PartySnapshot.cs" />
     <Compile Include="SpeedTrading\MountRecommendation.cs" />
     <Compile Include="SpeedTrading\PartySpeedAdvisor.cs" />

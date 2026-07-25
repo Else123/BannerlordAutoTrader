@@ -63,6 +63,7 @@ namespace AutoTrader
 		private void AddBehaviors(CampaignGameStarter gameStarterObject)
 		{
 			gameStarterObject.AddBehavior(new TradeBehavior(_autoTraderLogic));
+			gameStarterObject.AddBehavior(new AutoTrader.Warehouse.WarehouseBehavior());
 		}
 	}
 }

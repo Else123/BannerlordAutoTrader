@@ -38,7 +38,8 @@ namespace AutoTrader
         private const string GoodsGroup = "3. Goods & Equipment";
         private const string SuppliesGroup = "4. Supplies";
         private const string AnimalsGroup = "5. Animals";
-        private const string DiagnosticsGroup = "6. Diagnostics";
+        private const string WarehouseGroup = "6. Warehouse";
+        private const string DiagnosticsGroup = "7. Diagnostics";
 
         // Mode option lists. Mapping uses SelectedIndex, so the labels can be reworded freely.
         private static readonly string[] PricingModes = { "Trade rumours (smart)", "Fixed thresholds" };
@@ -49,6 +50,7 @@ namespace AutoTrader
         private static readonly string[] LivestockPolicies = { "Keep", "Sell surplus", "Sell all (junk)" };
         private static readonly string[] HardwoodSupplies = { "Off", "Buy hardwood", "Buy smeltable weapons", "Both" };
         private static readonly string[] WeaponSellPolicies = { "Never", "Looted only (keep crafted)", "All (including crafted)" };
+        private static readonly string[] WarehouseModes = { "Off", "Store what the merchant cannot afford", "Store and sell locally each day" };
 
         private static Dropdown<string> Choice(string[] values, int index)
         {
@@ -235,11 +237,29 @@ namespace AutoTrader
         [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
         public int KeepLivestockReserve { get; set; } = 5;
 
-        // --- 6. Diagnostics --------------------------------------------------
+        // --- 6. Warehouse ----------------------------------------------------
+
+        [SettingPropertyDropdown("Warehouse", Order = 0, RequireRestart = false,
+            HintText = "In towns your clan owns, store goods the merchant ran out of gold for in the town stash, " +
+                "instead of hauling them on. Consignment then sells a slice into that market every day.")]
+        [SettingPropertyGroup(WarehouseGroup, GroupOrder = 5)]
+        public Dropdown<string> WarehouseMode { get; set; } = Choice(WarehouseModes, 0);
+
+        [SettingPropertyInteger("Daily share of town gold (%)", 0, 100, "0", Order = 1, RequireRestart = false,
+            HintText = "How much of the town's gold may go into warehouse sales per day. Lower means slower but gentler on prices.")]
+        [SettingPropertyGroup(WarehouseGroup, GroupOrder = 5)]
+        public int ConsignmentShare { get; set; } = 25;
+
+        [SettingPropertyInteger("Minimum price to consign", 0, 1000, "0", Order = 2, RequireRestart = false,
+            HintText = "Items worth less than this per unit stay in the warehouse.")]
+        [SettingPropertyGroup(WarehouseGroup, GroupOrder = 5)]
+        public int ConsignmentMinPrice { get; set; } = 0;
+
+        // --- 7. Diagnostics --------------------------------------------------
 
         [SettingPropertyBool("Debug logging", Order = 0, RequireRestart = false,
             HintText = "Write every decision to AutoTrader.log next to AutoTraderConfig.xml. Slows trading down.")]
-        [SettingPropertyGroup(DiagnosticsGroup, GroupOrder = 5)]
+        [SettingPropertyGroup(DiagnosticsGroup, GroupOrder = 6)]
         public bool DebugMode { get; set; } = false;
 
         /// <summary>
@@ -315,6 +335,12 @@ namespace AutoTrader
             AutoTraderConfig.KeepLivestockReserveValue = s.KeepLivestockReserve;
 
             AutoTraderConfig.SellSmithingValue = s.SellSmithing;
+
+            // Warehouse: the mode owns both storing and consigning.
+            AutoTraderConfig.WarehouseModeValue = s.WarehouseMode.SelectedIndex;
+            AutoTraderConfig.ConsignmentSharePercentValue = s.ConsignmentShare;
+            AutoTraderConfig.ConsignmentMinPriceValue = s.ConsignmentMinPrice;
+
             AutoTraderConfig.DebugMode = s.DebugMode;
         }
 

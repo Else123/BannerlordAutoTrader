@@ -33,11 +33,16 @@ namespace AutoTrader
         private int _sellPackBudget;
         private int _sellLivestockBudget;
 
+        // Items that only failed to sell because the merchant ran out of gold - exactly what the
+        // warehouse is for.
+        private List<string> _goldBlockedItems;
+
         // Post-trade summary counters (units transacted this run).
         private int _unitsBought;
         private int _unitsSold;
         private int _mountsBought;
         private int _mountsSold;
+        private int _storedUnits;
 
         public AutoTraderLogic(ILogicConnector logicConnector)
         {
@@ -63,10 +68,12 @@ namespace AutoTrader
 
             _soldItems = new List<string>();
             _boughtItems = new List<string>();
+            _goldBlockedItems = new List<string>();
             _unitsBought = 0;
             _unitsSold = 0;
             _mountsBought = 0;
             _mountsSold = 0;
+            _storedUnits = 0;
             int startAvailableGold = _availablePlayerGold;
             _availableMerchantGold = _logicConnector.GetMerchantGold();
             UpdateAvailableInventoryCapacity();
@@ -88,6 +95,7 @@ namespace AutoTrader
                 BuyProcess(BuyFilter);
                 Sell();
                 BuyProcess(BuyFilter);
+                DepositUnsoldGoods();
                 Connector.BeginInventoryDisplayRefresh();
                 PrintTradeSummary(_availablePlayerGold - startAvailableGold);
             } catch ( Exception e)
@@ -348,10 +356,30 @@ namespace AutoTrader
             return result;
         }
 
+        // Stores what the local merchant could not afford in this town's warehouse, so the
+        // surplus stops travelling with the party. Consignment drains it over the next days.
+        private void DepositUnsoldGoods()
+        {
+            _storedUnits = 0;
+            if (AutoTraderConfig.WarehouseModeValue == AutoTraderConfig.WarehouseOff)
+            {
+                return;
+            }
+            if (_goldBlockedItems.Count == 0 || !_logicConnector.IsInOwnedTown())
+            {
+                return;
+            }
+
+            foreach (string itemName in _goldBlockedItems)
+            {
+                _storedUnits += _logicConnector.DepositItemToStash(itemName);
+            }
+        }
+
         // Shows a concise on-screen summary of what the trade run did.
         private void PrintTradeSummary(int netGold)
         {
-            if (_unitsBought == 0 && _unitsSold == 0)
+            if (_unitsBought == 0 && _unitsSold == 0 && _storedUnits == 0)
             {
                 return;
             }
@@ -361,6 +389,10 @@ namespace AutoTrader
             if (_mountsBought > 0 || _mountsSold > 0)
             {
                 summary += $" Mounts +{_mountsBought}/-{_mountsSold}.";
+            }
+            if (_storedUnits > 0)
+            {
+                summary += $" Stored {_storedUnits} in the warehouse (merchant out of gold).";
             }
             AutoTraderHelpers.PrintMessage(summary);
         }
@@ -843,6 +875,11 @@ namespace AutoTrader
             if (price >= _availableMerchantGold)
             {
                 AutoTraderHelpers.PrintDebugMessage(" - not selling because not enough merchant gold");
+                string blockedName = _logicConnector.GetItemName();
+                if (!_goldBlockedItems.Contains(blockedName))
+                {
+                    _goldBlockedItems.Add(blockedName);
+                }
                 return false;
             }
                 

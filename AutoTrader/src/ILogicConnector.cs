@@ -48,6 +48,8 @@ namespace AutoTrader
         bool IsItemGrain();
         bool IsItemHardwood();
         int GetPartyHardwoodIndex();
+        bool IsInOwnedTown();
+        int DepositItemToStash(string itemName);
         int GetHardwoodCount();
         int GetHardwoodUnitValue();
         int GetCurrentItemHardwoodSmeltYield();

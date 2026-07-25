@@ -71,6 +71,16 @@ namespace AutoTrader
         public static bool BuyLivestockValue { get; set; } = false;
         public static bool SellLivestockValue { get; set; } = true;
 
+        // Town warehouse (the vanilla settlement stash).
+        public const int WarehouseOff = 0;
+        public const int WarehouseDeposit = 1;
+        public const int WarehouseConsign = 2;
+        public static int WarehouseModeValue { get; set; } = WarehouseOff;
+        // Share of the town's gold that may be spent on the warehouse per day.
+        public static int ConsignmentSharePercentValue { get; set; } = 25;
+        // Items below this unit price stay in the warehouse instead of flooding the market.
+        public static int ConsignmentMinPriceValue { get; set; } = 0;
+
         public static int Version { get; set; } = 2;
         public static bool DebugMode { get; set; } = false;
 
@@ -235,6 +245,18 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.KeepMountsAboveValueValue = Int32.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "warehouseModeValue")
+                        {
+                            AutoTraderConfig.WarehouseModeValue = Int32.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "consignmentSharePercentValue")
+                        {
+                            AutoTraderConfig.ConsignmentSharePercentValue = Int32.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "consignmentMinPriceValue")
+                        {
+                            AutoTraderConfig.ConsignmentMinPriceValue = Int32.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "manageLivestockHerdValue")
                         {
                             AutoTraderConfig.ManageLivestockHerdValue = Boolean.Parse(textReader.ReadString());
@@ -341,6 +363,9 @@ namespace AutoTrader
                 textWriter.WriteElementString("sellNobleMountsValue", AutoTraderConfig.SellNobleMountsValue.ToString());
                 textWriter.WriteElementString("managePackAnimalHerdValue", AutoTraderConfig.ManagePackAnimalHerdValue.ToString());
                 textWriter.WriteElementString("keepMountsAboveValueValue", AutoTraderConfig.KeepMountsAboveValueValue.ToString());
+                textWriter.WriteElementString("warehouseModeValue", AutoTraderConfig.WarehouseModeValue.ToString());
+                textWriter.WriteElementString("consignmentSharePercentValue", AutoTraderConfig.ConsignmentSharePercentValue.ToString());
+                textWriter.WriteElementString("consignmentMinPriceValue", AutoTraderConfig.ConsignmentMinPriceValue.ToString());
                 textWriter.WriteElementString("manageLivestockHerdValue", AutoTraderConfig.ManageLivestockHerdValue.ToString());
                 textWriter.WriteElementString("keepLivestockReserveValue", AutoTraderConfig.KeepLivestockReserveValue.ToString());
                 textWriter.WriteElementString("buyArmorValue", AutoTraderConfig.BuyArmorValue.ToString());

@@ -1,6 +1,7 @@
 # Town Warehouse & Caravan Distribution (design)
 
-Status: **design only, nothing implemented yet.**
+Status: **Phase 1 and 2 implemented** (deposit + consignment). Phase 3 (caravan
+distribution) is still design only.
 
 ## The problem
 
