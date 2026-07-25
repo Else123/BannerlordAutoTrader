@@ -79,6 +79,9 @@ namespace AutoTrader
         public const int WarehouseOff = 0;
         public const int WarehouseDeposit = 1;
         public const int WarehouseConsign = 2;
+        public const int WarehouseCaravans = 3;
+        // The cut a player-owned caravan takes for hauling warehouse goods away.
+        public static int CaravanCommissionPercentValue { get; set; } = 15;
         public static int WarehouseModeValue { get; set; } = WarehouseOff;
         // Share of the town's gold that may be spent on the warehouse per day.
         public static int ConsignmentSharePercentValue { get; set; } = 25;
@@ -267,6 +270,10 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.ConsignmentMinPriceValue = Int32.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "caravanCommissionPercentValue")
+                        {
+                            AutoTraderConfig.CaravanCommissionPercentValue = Int32.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "manageLivestockHerdValue")
                         {
                             AutoTraderConfig.ManageLivestockHerdValue = Boolean.Parse(textReader.ReadString());
@@ -377,6 +384,7 @@ namespace AutoTrader
                 textWriter.WriteElementString("warehouseModeValue", AutoTraderConfig.WarehouseModeValue.ToString());
                 textWriter.WriteElementString("consignmentSharePercentValue", AutoTraderConfig.ConsignmentSharePercentValue.ToString());
                 textWriter.WriteElementString("consignmentMinPriceValue", AutoTraderConfig.ConsignmentMinPriceValue.ToString());
+                textWriter.WriteElementString("caravanCommissionPercentValue", AutoTraderConfig.CaravanCommissionPercentValue.ToString());
                 textWriter.WriteElementString("manageLivestockHerdValue", AutoTraderConfig.ManageLivestockHerdValue.ToString());
                 textWriter.WriteElementString("keepLivestockReserveValue", AutoTraderConfig.KeepLivestockReserveValue.ToString());
                 textWriter.WriteElementString("buyArmorValue", AutoTraderConfig.BuyArmorValue.ToString());

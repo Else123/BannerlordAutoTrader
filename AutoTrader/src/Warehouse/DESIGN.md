@@ -1,7 +1,14 @@
 # Town Warehouse & Caravan Distribution (design)
 
-Status: **Phase 1 and 2 implemented** (deposit + consignment). Phase 3 (caravan
-distribution) is still design only.
+Status: **all three phases implemented** (deposit, consignment, caravan distribution).
+Phases 1 and 2 have not been exercised in a playthrough yet.
+
+Deviation from the plan below: in phase 3 the caravan **buys** the goods on pickup, from
+its own trade gold and minus a commission, instead of the player being paid when it
+resells. That answers open questions 3 and 4 by removing them - there is no per-caravan
+bookkeeping that vanilla could invalidate, the caravan's route and trading stay untouched,
+and its trade gold throttles the flow naturally. The resale profit still reaches the
+player through the normal caravan income.
 
 ## The problem
 

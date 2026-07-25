@@ -1,5 +1,7 @@
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Party.PartyComponents;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -21,6 +23,7 @@ namespace AutoTrader.Warehouse
         public override void RegisterEvents()
         {
             CampaignEvents.DailyTickSettlementEvent.AddNonSerializedListener(this, OnDailyTickSettlement);
+            CampaignEvents.AfterSettlementEntered.AddNonSerializedListener(this, OnSettlementEntered);
         }
 
         // The warehouse lives in the vanilla stash, which the campaign already saves.
@@ -30,7 +33,7 @@ namespace AutoTrader.Warehouse
 
         private void OnDailyTickSettlement(Settlement settlement)
         {
-            if (AutoTraderConfig.WarehouseModeValue != AutoTraderConfig.WarehouseConsign)
+            if (AutoTraderConfig.WarehouseModeValue < AutoTraderConfig.WarehouseConsign)
             {
                 return;
             }
@@ -48,6 +51,106 @@ namespace AutoTrader.Warehouse
             }
 
             ConsignSlice(settlement);
+        }
+
+        /// <summary>
+        /// A caravan of the player's own arriving at a warehouse town loads what it can pay for
+        /// and carry, and takes it to the towns it visits anyway.
+        ///
+        /// The caravan buys the goods outright, from its own trade gold and minus a commission,
+        /// rather than the player being paid later when it resells. That keeps the caravan's own
+        /// route and trading untouched (no per-caravan bookkeeping that vanilla could invalidate),
+        /// and its trade gold is a natural throttle. Its resale profit reaches the player through
+        /// the usual caravan income anyway.
+        /// </summary>
+        private void OnSettlementEntered(MobileParty party, Settlement settlement, Hero hero)
+        {
+            if (AutoTraderConfig.WarehouseModeValue < AutoTraderConfig.WarehouseCaravans)
+            {
+                return;
+            }
+            if (party == null || !party.IsCaravan)
+            {
+                return;
+            }
+            CaravanPartyComponent caravan = party.CaravanPartyComponent;
+            if (caravan == null || caravan.Owner != Hero.MainHero)
+            {
+                return;
+            }
+            if (settlement == null || !settlement.IsTown || settlement.Town == null)
+            {
+                return;
+            }
+            if (settlement.OwnerClan != Clan.PlayerClan)
+            {
+                return;
+            }
+            if (settlement.Stash == null || settlement.Stash.Count == 0)
+            {
+                return;
+            }
+
+            LoadCaravan(party, settlement);
+        }
+
+        private void LoadCaravan(MobileParty party, Settlement settlement)
+        {
+            Town town = settlement.Town;
+            int gold = party.PartyTradeGold;
+            float freeCapacity = party.InventoryCapacity - party.TotalWeightCarried;
+            if (gold <= 0 || freeCapacity <= 0f)
+            {
+                return;
+            }
+
+            int commission = AutoTraderConfig.CaravanCommissionPercentValue;
+            int minPrice = AutoTraderConfig.ConsignmentMinPriceValue;
+            int loadedUnits = 0;
+            int paid = 0;
+
+            for (int i = settlement.Stash.Count - 1; i >= 0 && gold > 0 && freeCapacity > 0f; i--)
+            {
+                ItemRosterElement element = settlement.Stash[i];
+                ItemObject item = element.EquipmentElement.Item;
+                if (item == null || element.Amount <= 0)
+                {
+                    continue;
+                }
+
+                float unitWeight = item.Weight;
+                int remaining = element.Amount;
+                while (remaining > 0 && gold > 0 && unitWeight <= freeCapacity)
+                {
+                    int marketPrice = town.GetItemPrice(element.EquipmentElement, party, true);
+                    if (marketPrice <= 0 || marketPrice < minPrice)
+                    {
+                        break;
+                    }
+
+                    int payout = marketPrice * (100 - commission) / 100;
+                    if (payout <= 0 || payout > gold)
+                    {
+                        break;
+                    }
+
+                    settlement.Stash.AddToCounts(element.EquipmentElement, -1);
+                    party.ItemRoster.AddToCounts(element.EquipmentElement, 1);
+                    GiveGoldAction.ApplyForPartyToCharacter(party.Party, Hero.MainHero, payout, true);
+
+                    gold -= payout;
+                    freeCapacity -= unitWeight;
+                    paid += payout;
+                    remaining--;
+                    loadedUnits++;
+                }
+            }
+
+            if (loadedUnits > 0)
+            {
+                AutoTraderHelpers.PrintMessage(
+                    $"Warehouse ({settlement.Name}): {party.Name} loaded {loadedUnits} items for {paid} gold.");
+            }
         }
 
         private void ConsignSlice(Settlement settlement)

@@ -50,7 +50,7 @@ namespace AutoTrader
         private static readonly string[] LivestockPolicies = { "Keep", "Sell surplus", "Sell all (junk)" };
         private static readonly string[] HardwoodSupplies = { "Off", "Buy hardwood", "Buy smeltable weapons", "Both" };
         private static readonly string[] WeaponSellPolicies = { "Never", "Looted only (keep crafted)", "All (including crafted)" };
-        private static readonly string[] WarehouseModes = { "Off", "Store what the merchant cannot afford", "Store and sell locally each day" };
+        private static readonly string[] WarehouseModes = { "Off", "Store what the merchant cannot afford", "Store and sell locally each day", "Store, sell locally and let caravans haul it away" };
 
         private static Dropdown<string> Choice(string[] values, int index)
         {
@@ -255,6 +255,11 @@ namespace AutoTrader
         [SettingPropertyGroup(WarehouseGroup, GroupOrder = 5)]
         public int ConsignmentMinPrice { get; set; } = 0;
 
+        [SettingPropertyInteger("Caravan commission (%)", 0, 50, "0", Order = 3, RequireRestart = false,
+            HintText = "The cut your own caravans take for buying warehouse goods and hauling them to other towns.")]
+        [SettingPropertyGroup(WarehouseGroup, GroupOrder = 5)]
+        public int CaravanCommission { get; set; } = 15;
+
         // --- 7. Diagnostics --------------------------------------------------
 
         [SettingPropertyBool("Debug logging", Order = 0, RequireRestart = false,
@@ -340,6 +345,7 @@ namespace AutoTrader
             AutoTraderConfig.WarehouseModeValue = s.WarehouseMode.SelectedIndex;
             AutoTraderConfig.ConsignmentSharePercentValue = s.ConsignmentShare;
             AutoTraderConfig.ConsignmentMinPriceValue = s.ConsignmentMinPrice;
+            AutoTraderConfig.CaravanCommissionPercentValue = s.CaravanCommission;
 
             AutoTraderConfig.DebugMode = s.DebugMode;
         }

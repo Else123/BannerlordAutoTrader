@@ -369,23 +369,6 @@ namespace AutoTrader
             return result;
         }
 
-        internal bool SimpleWorthCheck(int value, int buyoutPrice)
-        {
-            AutoTraderHelpers.PrintDebugMessage("### Simple Worth Check ###");
-            /// Checks if the value is below or above threshold 
-            var result = false;
-            if (!_logicConnector.IsBuying && buyoutPrice >= ((float)AutoTraderConfig.SellThresholdValue / 100.0f) * (float)value)
-            {
-                result = true;
-            }
-            else if (_logicConnector.IsBuying && buyoutPrice < ((float)AutoTraderConfig.BuyThresholdValue / 100.0f) * (float)value)
-            {
-                result = true;
-            }
-            AutoTraderHelpers.PrintDebugMessage("- isItemWorth: " + result.ToString());
-            return result;
-        }
-
         // Stores what the local merchant could not afford in this town's warehouse, so the
         // surplus stops travelling with the party. Consignment drains it over the next days.
         private void DepositUnsoldGoods()
