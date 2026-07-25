@@ -1,15 +1,15 @@
-﻿namespace AutoTrader.SpeedTrading
+namespace AutoTrader.SpeedTrading
 {
-    /// <summary>Ergebnis der Speed-Optimierung: wie viele Reittiere kaufen/verkaufen.</summary>
+    /// <summary>Result of the speed optimization: how many mounts to buy/sell.</summary>
     public readonly struct MountRecommendation
     {
-        /// <summary>Anzahl Reittiere, die zusaetzlich gekauft werden sollten (>= 0).</summary>
+        /// <summary>Number of mounts that should additionally be bought (>= 0).</summary>
         public readonly int BuyCount;
 
-        /// <summary>Anzahl ueberzaehliger Reittiere, die verkauft werden sollten (>= 0).</summary>
+        /// <summary>Number of surplus mounts that should be sold (>= 0).</summary>
         public readonly int SellCount;
 
-        /// <summary>Menschenlesbare Begruendung (fuer Log/Debug).</summary>
+        /// <summary>Human-readable rationale (for log/debug).</summary>
         public readonly string Reason;
 
         public MountRecommendation(int buyCount, int sellCount, string reason)
@@ -22,4 +22,3 @@
         public bool HasAction => BuyCount > 0 || SellCount > 0;
     }
 }
-

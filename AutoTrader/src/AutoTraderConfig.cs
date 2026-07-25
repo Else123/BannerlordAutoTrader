@@ -40,9 +40,9 @@ namespace AutoTrader
         public static bool BuyHorsesValue { get; set; } = true;
         public static bool SellHorsesValue { get; set; } = false;
 
-        // Speed-aware mount trading: Reittiere so handeln, dass die Party-Speed optimal bleibt.
+        // Speed-aware mount trading: trade mounts so party speed stays optimal.
         public static bool SpeedAwareMountsValue { get; set; } = true;
-        // Herd-Schwelle als Prozent der Party-Groesse (Tiere darueber erzeugen Speed-Malus).
+        // Herd threshold as a percent of party size (animals above it cause a speed penalty).
         public static int HerdThresholdPercentValue { get; set; } = 105;
         public static bool BuyWeaponsValue { get; set; } = false;
         public static bool SellWeaponsValue { get; set; } = true;

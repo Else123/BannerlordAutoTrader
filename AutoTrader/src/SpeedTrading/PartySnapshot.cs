@@ -1,25 +1,25 @@
-﻿namespace AutoTrader.SpeedTrading
+namespace AutoTrader.SpeedTrading
 {
     /// <summary>
-    /// Reiner Datenschnappschuss der fuer Speed-Entscheidungen relevanten
-    /// Party-Kennzahlen. Bewusst engine-frei, damit die Logik in
-    /// <see cref="PartySpeedAdvisor"/> ohne laufendes Spiel testbar ist.
+    /// Pure data snapshot of the party metrics relevant to speed decisions.
+    /// Deliberately engine-free so the logic in <see cref="PartySpeedAdvisor"/> stays
+    /// testable without a running game.
     /// </summary>
     public readonly struct PartySnapshot
     {
-        /// <summary>Gesamtzahl Mann in der Party (beritten + zu Fuss).</summary>
+        /// <summary>Total number of men in the party (mounted + on foot).</summary>
         public readonly int MemberCount;
 
-        /// <summary>Fusssoldaten, die durch ein freies Reittier beritten werden koennten.</summary>
+        /// <summary>Foot soldiers that could be mounted by a spare mount.</summary>
         public readonly int FootTroopCount;
 
-        /// <summary>Freie Reittiere im Inventar, die Infanterie aufsitzen lassen koennen.</summary>
+        /// <summary>Spare mounts in the inventory that can let infantry mount up.</summary>
         public readonly int SpareMountCount;
 
-        /// <summary>Aktuelles Inventargewicht.</summary>
+        /// <summary>Current inventory weight.</summary>
         public readonly float InventoryWeight;
 
-        /// <summary>Tragekapazitaet der Party.</summary>
+        /// <summary>Party carry capacity.</summary>
         public readonly float InventoryCapacity;
 
         public PartySnapshot(int memberCount, int footTroopCount, int spareMountCount,
@@ -33,4 +33,3 @@
         }
     }
 }
-

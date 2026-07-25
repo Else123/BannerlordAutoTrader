@@ -24,8 +24,8 @@ namespace AutoTrader
         private List<string> _soldItems;
         private List<string> _boughtItems;
 
-        // Speed-aware mount trading: pro Trade-Durchlauf berechnete Kauf-/Verkaufskontingente
-        // fuer Reitpferde (siehe ComputeMountBudgets / SpeedTrading.PartySpeedAdvisor).
+        // Speed-aware mount trading: per-run buy/sell budgets for riding horses
+        // (see ComputeMountBudgets / SpeedTrading.PartySpeedAdvisor).
         private int _mountBuyBudget;
         private int _mountSellBudget;
 
@@ -103,9 +103,9 @@ namespace AutoTrader
             }
         }
 
-        // Speed-aware mount trading: bestimmt einmalig pro Trade-Durchlauf, wie viele
-        // Reitpferde gekauft bzw. als Herd-/Speed-Ueberschuss verkauft werden sollen.
-        // Die reine Entscheidungslogik liegt engine-frei in SpeedTrading.PartySpeedAdvisor.
+        // Speed-aware mount trading: determines once per run how many riding horses to
+        // buy or sell as herd/speed surplus. The pure decision logic lives engine-free in
+        // SpeedTrading.PartySpeedAdvisor.
         private void ComputeMountBudgets()
         {
             _mountBuyBudget = 0;

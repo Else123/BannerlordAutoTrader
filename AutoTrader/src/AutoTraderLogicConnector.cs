@@ -106,7 +106,7 @@ namespace AutoTrader
             return PartyBase.MainParty.MobileParty.ItemRoster.NumberOfLivestockAnimals;
         }
 
-        // Fusssoldaten der Party (nicht-berittene Formationsklassen) - Basis fuer das Speed-Optimum.
+        // Foot soldiers in the party (non-mounted formation classes) - basis for the speed optimum.
         public int GetNumFootTroops()
         {
             int count = 0;
@@ -129,7 +129,7 @@ namespace AutoTrader
             return count;
         }
 
-        // Freie Reitpferde im Inventar (Reittiere, keine Packtiere) - zaehlen fuers Aufsitzen der Infanterie.
+        // Spare riding horses in the inventory (mounts, not pack animals) - used to mount the infantry.
         public int GetNumSpareRidingMounts()
         {
             int count = 0;

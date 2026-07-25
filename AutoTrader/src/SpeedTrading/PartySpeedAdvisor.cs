@@ -1,26 +1,25 @@
-﻿using System;
+using System;
 
 namespace AutoTrader.SpeedTrading
 {
     /// <summary>
-    /// Kern der Speed-Idee: entscheidet rein rechnerisch, wie viele freie
-    /// Reittiere die Party halten sollte, um die Kartengeschwindigkeit zu
-    /// maximieren -- ohne in den Herd-Malus zu laufen.
+    /// Core of the speed idea: decides purely arithmetically how many spare mounts the
+    /// party should keep to maximize map speed -- without running into the herd penalty.
     ///
-    /// Zugrundeliegende Vanilla-Mechanik (DefaultPartySpeedCalculatingModel):
-    ///  - Jeder Fusssoldat, der ein freies Reittier aufsitzen kann, gibt einen
-    ///    Geschwindigkeitsbonus. Optimal ist also ~1 freies Reittier je Fusssoldat.
-    ///  - Reittiere/Packtiere oberhalb einer Schwelle (~ MemberCount * 1.05)
-    ///    erzeugen einen zunehmenden Herd-Malus.
-    /// Quelle der Kennzahlen: Party-Speed-Analysen der Community; die exakten
-    /// Faktoren gehoeren gegen die dekompilierte v1.4.7 verifiziert (siehe NOTES.md).
+    /// Underlying vanilla mechanic (DefaultPartySpeedCalculatingModel):
+    ///  - Every foot soldier that can mount a spare horse grants a speed bonus, so the
+    ///    optimum is ~1 spare mount per foot soldier.
+    ///  - Mounts/pack animals above a threshold (~ MemberCount * 1.05) create an
+    ///    increasing herd penalty.
+    /// Source of the figures: community party-speed analyses; the exact factors should be
+    /// verified against decompiled v1.4.7 (see README.md).
     /// </summary>
     public sealed class PartySpeedAdvisor
     {
-        /// <summary>Sicherheitsabstand unter der Herd-Schwelle (Anzahl Tiere).</summary>
+        /// <summary>Safety margin below the herd threshold (number of animals).</summary>
         private const int HerdSafetyMargin = 2;
 
-        /// <summary>Multiplikator fuer die Herd-Schwelle relativ zur Party-Groesse.</summary>
+        /// <summary>Multiplier for the herd threshold relative to party size.</summary>
         private readonly float _herdThresholdFactor;
 
         public PartySpeedAdvisor(float herdThresholdFactor = 1.05f)
@@ -29,7 +28,7 @@ namespace AutoTrader.SpeedTrading
         }
 
         /// <summary>
-        /// Anzahl freier Reittiere, unterhalb derer kein Herd-Malus entsteht.
+        /// Number of spare mounts below which no herd penalty occurs.
         /// </summary>
         public int HerdThreshold(in PartySnapshot p)
         {
@@ -37,8 +36,8 @@ namespace AutoTrader.SpeedTrading
         }
 
         /// <summary>
-        /// Ideale Anzahl freier Reittiere: genug um alle Fusssoldaten aufsitzen
-        /// zu lassen, aber sicher unterhalb der Herd-Schwelle.
+        /// Ideal number of spare mounts: enough to mount all foot soldiers, but safely
+        /// below the herd threshold.
         /// </summary>
         public int TargetSpareMounts(in PartySnapshot p)
         {
@@ -47,30 +46,29 @@ namespace AutoTrader.SpeedTrading
             return Math.Min(desiredForMounting, safeCap);
         }
 
-        /// <summary>Leitet aus dem Schnappschuss eine Kauf-/Verkaufsempfehlung ab.</summary>
+        /// <summary>Derives a buy/sell recommendation from the snapshot.</summary>
         public MountRecommendation Recommend(in PartySnapshot p)
         {
             int target = TargetSpareMounts(in p);
             int threshold = HerdThreshold(in p);
 
-            // Zu viele Tiere -> Herd-Malus: Ueberschuss ueber die Schwelle abstossen.
+            // Too many animals -> herd penalty: shed the surplus above the threshold.
             if (p.SpareMountCount > threshold)
             {
                 int sell = p.SpareMountCount - target;
                 return new MountRecommendation(0, sell,
-                    $"Herd-Malus: {p.SpareMountCount} Reittiere > Schwelle {threshold}, {sell} verkaufen (Ziel {target}).");
+                    $"Herd penalty: {p.SpareMountCount} mounts > threshold {threshold}, sell {sell} (target {target}).");
             }
 
-            // Zu wenige Tiere, um alle Fusssoldaten zu beritten -> nachkaufen.
+            // Too few animals to mount all foot soldiers -> buy more.
             if (p.SpareMountCount < target)
             {
                 int buy = target - p.SpareMountCount;
                 return new MountRecommendation(buy, 0,
-                    $"Speed-Bonus: {buy} Reittiere kaufen (habe {p.SpareMountCount}, Ziel {target} fuer {p.FootTroopCount} Fusssoldaten).");
+                    $"Speed bonus: buy {buy} mounts (have {p.SpareMountCount}, target {target} for {p.FootTroopCount} foot soldiers).");
             }
 
-            return new MountRecommendation(0, 0, "Reittier-Bestand bereits im Speed-Optimum.");
+            return new MountRecommendation(0, 0, "Mount count already at speed optimum.");
         }
     }
 }
-
