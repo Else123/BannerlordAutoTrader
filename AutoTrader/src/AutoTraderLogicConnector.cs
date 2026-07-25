@@ -296,6 +296,30 @@ namespace AutoTrader
             AutoTraderHelpers.PrintDebugMessage(" - HardwoodIndex: " + result.ToString());
             return result;
         }
+
+        // --- Smithing supply: cheap smeltable weapons as a hardwood source ---
+
+        public int GetHardwoodCount()
+        {
+            return PartyBase.MainParty.ItemRoster.GetItemNumber(DefaultItems.HardWood);
+        }
+
+        public int GetHardwoodUnitValue()
+        {
+            return DefaultItems.HardWood.Value;
+        }
+
+        // Hardwood a weapon would yield when smelted (0 for non-weapons). Wood == index 7.
+        public int GetCurrentItemHardwoodSmeltYield()
+        {
+            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
+            if (item == null || !AutoTraderHelpers.IsWeapon(item))
+            {
+                return 0;
+            }
+            int[] output = Campaign.Current.Models.SmithingModel.GetSmeltingOutputForItem(item);
+            return output[(int)CraftingMaterials.Wood];
+        }
         public float GetRosterElementWeight()
         {
             var result = _currentItemRosterElement.GetRosterElementWeight();

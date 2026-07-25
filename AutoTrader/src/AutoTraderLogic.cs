@@ -382,6 +382,33 @@ namespace AutoTrader
             _logicConnector.TransferItem();
         }
 
+        // Buys the current weapon only if it is a cost-effective hardwood source and the
+        // party is below its hardwood target (coupled to smithing material need).
+        private bool DecideSmeltablePurchase(int amount, int buyoutPrice)
+        {
+            if (!AutoTraderConfig.BuySmeltablesForHardwoodValue || !_logicConnector.IsWeapon())
+            {
+                return false;
+            }
+            if (_logicConnector.GetHardwoodCount() >= AutoTraderConfig.SmeltHardwoodTargetValue)
+            {
+                return false;
+            }
+            int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
+            if (hardwoodYield <= 0)
+            {
+                return false;
+            }
+            // Only worth it if the weapon costs no more than the hardwood it yields is worth.
+            if (buyoutPrice > hardwoodYield * _logicConnector.GetHardwoodUnitValue())
+            {
+                AutoTraderHelpers.PrintDebugMessage(" - smeltable too expensive as a hardwood source");
+                return false;
+            }
+            AutoTraderHelpers.PrintDebugMessage(" - buying smeltable weapon for hardwood (yield " + hardwoodYield + ")");
+            return CheckBasicBuyRequirements(amount, buyoutPrice);
+        }
+
         // Decides whether to buy the current horse item. Pack animals keep the original
         // resupply rule; only regular riding horses are bought, up to the speed budget.
         private bool DecideHorsePurchase(int amount, int buyoutPrice)
@@ -431,6 +458,12 @@ namespace AutoTrader
             if (_logicConnector.IsHorse())
             {
                 return DecideHorsePurchase(amount, buyoutPrice);
+            }
+
+            // Cheap smeltable weapons as a hardwood source for smithing (only when needed).
+            if (DecideSmeltablePurchase(amount, buyoutPrice))
+            {
+                return true;
             }
 
             // Hardwood
@@ -536,6 +569,15 @@ namespace AutoTrader
                 if (AutoTraderConfig.KeepSmeltingValue && !_logicConnector.IsWeaponDesignEmpty())
                 {
                     AutoTraderHelpers.PrintDebugMessage("- do not sell because its crafted");
+                    return false;
+                }
+
+                // Keep weapons we are collecting to smelt into hardwood.
+                if (AutoTraderConfig.BuySmeltablesForHardwoodValue
+                    && _logicConnector.GetHardwoodCount() < AutoTraderConfig.SmeltHardwoodTargetValue
+                    && _logicConnector.GetCurrentItemHardwoodSmeltYield() > 0)
+                {
+                    AutoTraderHelpers.PrintDebugMessage("- keep weapon: collecting for hardwood smelting");
                     return false;
                 }
 

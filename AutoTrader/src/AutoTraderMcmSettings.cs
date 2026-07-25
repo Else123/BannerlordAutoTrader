@@ -186,6 +186,16 @@ namespace AutoTrader
         [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
         public bool KeepSmelting { get; set; } = false;
 
+        [SettingPropertyBool("Buy smeltable weapons for hardwood", Order = 2, RequireRestart = false,
+            HintText = "Buy cheap weapons that smelt into hardwood, but only while hardwood is below the target.")]
+        [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
+        public bool BuySmeltablesForHardwood { get; set; } = false;
+
+        [SettingPropertyInteger("Hardwood stock target", 0, 500, "0", Order = 3, RequireRestart = false,
+            HintText = "Buy smeltable weapons until party hardwood reaches this amount.")]
+        [SettingPropertyGroup(SmithingGroup, GroupOrder = 4)]
+        public int SmeltHardwoodTarget { get; set; } = 100;
+
         // --- Speed-Aware Mounts (section 5) ---------------------------------
 
         [SettingPropertyBool("Enable speed-aware mount trading", Order = 0, RequireRestart = false,
@@ -251,6 +261,8 @@ namespace AutoTrader
 
             AutoTraderConfig.SellSmithingValue = s.SellSmithing;
             AutoTraderConfig.KeepSmeltingValue = s.KeepSmelting;
+            AutoTraderConfig.BuySmeltablesForHardwoodValue = s.BuySmeltablesForHardwood;
+            AutoTraderConfig.SmeltHardwoodTargetValue = s.SmeltHardwoodTarget;
 
             AutoTraderConfig.SpeedAwareMountsValue = s.SpeedAwareMounts;
             AutoTraderConfig.ReserveUpgradeMountsValue = s.ReserveUpgradeMounts;

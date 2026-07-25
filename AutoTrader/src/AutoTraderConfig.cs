@@ -30,6 +30,9 @@ namespace AutoTrader
 
         public static bool SellSmithingValue { get; set; } = false;
         public static bool KeepSmeltingValue { get; set; } = false;
+        // Buy cheap smeltable weapons as a hardwood source for smithing (coupled to need).
+        public static bool BuySmeltablesForHardwoodValue { get; set; } = false;
+        public static int SmeltHardwoodTargetValue { get; set; } = 100;
         public static bool ResupplyHardwoodValue { get; set; } = false;
         public static bool ResupplyValue { get; set; } = true;
         public static bool JunkCattleValue { get; set; } = false;
@@ -174,6 +177,14 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.KeepSmeltingValue = Boolean.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "buySmeltablesForHardwoodValue")
+                        {
+                            AutoTraderConfig.BuySmeltablesForHardwoodValue = Boolean.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "smeltHardwoodTargetValue")
+                        {
+                            AutoTraderConfig.SmeltHardwoodTargetValue = Int32.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "resupplyHardwoodValue")
                         {
                             AutoTraderConfig.ResupplyHardwoodValue = Boolean.Parse(textReader.ReadString());
@@ -284,6 +295,8 @@ namespace AutoTrader
                 textWriter.WriteElementString("resupplyValue", AutoTraderConfig.ResupplyValue.ToString());
                 textWriter.WriteElementString("sellSmithingValue", AutoTraderConfig.SellSmithingValue.ToString());
                 textWriter.WriteElementString("keepSmeltingValue", AutoTraderConfig.KeepSmeltingValue.ToString());
+                textWriter.WriteElementString("buySmeltablesForHardwoodValue", AutoTraderConfig.BuySmeltablesForHardwoodValue.ToString());
+                textWriter.WriteElementString("smeltHardwoodTargetValue", AutoTraderConfig.SmeltHardwoodTargetValue.ToString());
                 textWriter.WriteElementString("resupplyHardwoodValue", AutoTraderConfig.ResupplyHardwoodValue.ToString());
 
                 textWriter.WriteElementString("buyHorsesValue", AutoTraderConfig.BuyHorsesValue.ToString());

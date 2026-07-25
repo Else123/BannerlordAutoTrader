@@ -48,6 +48,9 @@ namespace AutoTrader
         bool IsItemGrain();
         bool IsItemHardwood();
         int GetPartyHardwoodIndex();
+        int GetHardwoodCount();
+        int GetHardwoodUnitValue();
+        int GetCurrentItemHardwoodSmeltYield();
         float GetRosterElementWeight();
         bool InitInventory();
         int GetMerchantGold();
