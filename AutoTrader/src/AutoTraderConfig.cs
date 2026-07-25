@@ -44,6 +44,10 @@ namespace AutoTrader
         public static bool SpeedAwareMountsValue { get; set; } = true;
         // Herd threshold as a percent of party size (animals above it cause a speed penalty).
         public static int HerdThresholdPercentValue { get; set; } = 105;
+        // Keep war/noble mounts needed for pending troop upgrades instead of selling them.
+        public static bool ReserveUpgradeMountsValue { get; set; } = true;
+        // Allow selling surplus noble mounts (off by default: noble mounts are the most valuable).
+        public static bool SellNobleMountsValue { get; set; } = false;
         public static bool BuyWeaponsValue { get; set; } = false;
         public static bool SellWeaponsValue { get; set; } = true;
         public static bool BuyArmorValue { get; set; } = false;
@@ -199,6 +203,14 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.HerdThresholdPercentValue = Int32.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "reserveUpgradeMountsValue")
+                        {
+                            AutoTraderConfig.ReserveUpgradeMountsValue = Boolean.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "sellNobleMountsValue")
+                        {
+                            AutoTraderConfig.SellNobleMountsValue = Boolean.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "buyArmorValue")
                         {
                             AutoTraderConfig.BuyArmorValue = Boolean.Parse(textReader.ReadString());
@@ -292,6 +304,8 @@ namespace AutoTrader
                 textWriter.WriteElementString("sellHorsesValue", AutoTraderConfig.SellHorsesValue.ToString());
                 textWriter.WriteElementString("speedAwareMountsValue", AutoTraderConfig.SpeedAwareMountsValue.ToString());
                 textWriter.WriteElementString("herdThresholdPercentValue", AutoTraderConfig.HerdThresholdPercentValue.ToString());
+                textWriter.WriteElementString("reserveUpgradeMountsValue", AutoTraderConfig.ReserveUpgradeMountsValue.ToString());
+                textWriter.WriteElementString("sellNobleMountsValue", AutoTraderConfig.SellNobleMountsValue.ToString());
                 textWriter.WriteElementString("buyArmorValue", AutoTraderConfig.BuyArmorValue.ToString());
                 textWriter.WriteElementString("sellArmorValue", AutoTraderConfig.SellArmorValue.ToString());
                 textWriter.WriteElementString("buyWeaponsValue", AutoTraderConfig.BuyWeaponsValue.ToString());

@@ -3,72 +3,96 @@ using System;
 namespace AutoTrader.SpeedTrading
 {
     /// <summary>
-    /// Core of the speed idea: decides purely arithmetically how many spare mounts the
-    /// party should keep to maximize map speed -- without running into the herd penalty.
+    /// Decides how many mounts to buy/sell so party map speed stays optimal while troop
+    /// upgrades are not starved of war/noble mounts.
     ///
-    /// Underlying vanilla mechanic (DefaultPartySpeedCalculatingModel):
+    /// Vanilla background (DefaultPartySpeedCalculatingModel):
     ///  - Every foot soldier that can mount a spare horse grants a speed bonus, so the
-    ///    optimum is ~1 spare mount per foot soldier.
-    ///  - Mounts/pack animals above a threshold (~ MemberCount * 1.05) create an
-    ///    increasing herd penalty.
-    /// Source of the figures: community party-speed analyses; the exact factors should be
-    /// verified against decompiled v1.4.7 (see README.md).
+    ///    optimum is ~1 ridable spare mount per foot soldier.
+    ///  - Animals above ~ MemberCount * factor create an increasing herd penalty; the cap
+    ///    applies to ALL animals (mounts + pack + livestock), not just riding horses.
+    /// Figures come from community analyses; verify against decompiled v1.4.7 (README.md).
     /// </summary>
     public sealed class PartySpeedAdvisor
     {
         /// <summary>Safety margin below the herd threshold (number of animals).</summary>
         private const int HerdSafetyMargin = 2;
 
-        /// <summary>Multiplier for the herd threshold relative to party size.</summary>
         private readonly float _herdThresholdFactor;
+        private readonly bool _allowNobleSell;
 
-        public PartySpeedAdvisor(float herdThresholdFactor = 1.05f)
+        public PartySpeedAdvisor(float herdThresholdFactor = 1.05f, bool allowNobleSell = false)
         {
             _herdThresholdFactor = herdThresholdFactor;
+            _allowNobleSell = allowNobleSell;
         }
 
-        /// <summary>
-        /// Number of spare mounts below which no herd penalty occurs.
-        /// </summary>
+        /// <summary>Animal count at/above which the herd penalty kicks in.</summary>
         public int HerdThreshold(in PartySnapshot p)
         {
             return (int)Math.Floor(p.MemberCount * _herdThresholdFactor);
         }
 
         /// <summary>
-        /// Ideal number of spare mounts: enough to mount all foot soldiers, but safely
-        /// below the herd threshold.
+        /// Ridable spare mounts wanted for speed: one per foot soldier, capped safely below
+        /// the herd threshold.
         /// </summary>
-        public int TargetSpareMounts(in PartySnapshot p)
+        public int SpeedTarget(in PartySnapshot p)
         {
             int safeCap = Math.Max(0, HerdThreshold(in p) - HerdSafetyMargin);
-            int desiredForMounting = p.FootTroopCount;
-            return Math.Min(desiredForMounting, safeCap);
+            return Math.Min(p.FootTroopCount, safeCap);
         }
 
-        /// <summary>Derives a buy/sell recommendation from the snapshot.</summary>
+        /// <summary>Derives a per-category buy/sell plan from the snapshot.</summary>
         public MountRecommendation Recommend(in PartySnapshot p)
         {
-            int target = TargetSpareMounts(in p);
             int threshold = HerdThreshold(in p);
+            int speedTarget = SpeedTarget(in p);
+            int ridable = p.RidableMounts;
 
-            // Too many animals -> herd penalty: shed the surplus above the threshold.
-            if (p.SpareMountCount > threshold)
+            // Buy: only regular horses, up to the speed target, and only while total animals
+            // stay below the herd threshold (never make the party slower).
+            int buyRegular = Math.Max(0, Math.Min(speedTarget - ridable, threshold - p.TotalAnimals));
+
+            // Sell: shed the ridable surplus above the speed target, or the animal surplus
+            // above the herd threshold, whichever is larger (bounded by what we can shed from
+            // the ridable pool - pack/livestock selling is out of scope for now).
+            int ridableSurplus = Math.Max(0, ridable - speedTarget);
+            int herdSurplus = Math.Max(0, p.TotalAnimals - threshold);
+            int toShed = Math.Min(ridable, Math.Max(ridableSurplus, herdSurplus));
+
+            // Allocate the sells: regular first, then war above its upgrade reserve, and noble
+            // last and only if explicitly allowed.
+            int sellRegular = Math.Min(p.RegularMounts, toShed);
+            int rest = toShed - sellRegular;
+
+            int sellWar = Math.Min(Math.Max(0, p.WarMounts - p.WarUpgradeReserve), rest);
+            rest -= sellWar;
+
+            int sellNoble = 0;
+            if (_allowNobleSell)
             {
-                int sell = p.SpareMountCount - target;
-                return new MountRecommendation(0, sell,
-                    $"Herd penalty: {p.SpareMountCount} mounts > threshold {threshold}, sell {sell} (target {target}).");
+                sellNoble = Math.Min(Math.Max(0, p.NobleMounts - p.NobleUpgradeReserve), rest);
+                rest -= sellNoble;
             }
 
-            // Too few animals to mount all foot soldiers -> buy more.
-            if (p.SpareMountCount < target)
+            string reason;
+            if (buyRegular > 0)
             {
-                int buy = target - p.SpareMountCount;
-                return new MountRecommendation(buy, 0,
-                    $"Speed bonus: buy {buy} mounts (have {p.SpareMountCount}, target {target} for {p.FootTroopCount} foot soldiers).");
+                reason = $"Buy {buyRegular} regular mounts (ridable {ridable}/{speedTarget}, animals {p.TotalAnimals}/{threshold}).";
+            }
+            else if (sellRegular + sellWar + sellNoble > 0)
+            {
+                reason = $"Sell surplus mounts reg={sellRegular} war={sellWar} noble={sellNoble} " +
+                    $"(ridable {ridable}, target {speedTarget}, animals {p.TotalAnimals}/{threshold}; " +
+                    $"reserves war={p.WarUpgradeReserve} noble={p.NobleUpgradeReserve}).";
+            }
+            else
+            {
+                reason = "Mounts already balanced for speed and upgrades.";
             }
 
-            return new MountRecommendation(0, 0, "Mount count already at speed optimum.");
+            return new MountRecommendation(buyRegular, sellRegular, sellWar, sellNoble, reason);
         }
     }
 }

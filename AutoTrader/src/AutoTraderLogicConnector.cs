@@ -129,8 +129,9 @@ namespace AutoTrader
             return count;
         }
 
-        // Spare riding horses in the inventory (mounts, not pack animals) - used to mount the infantry.
-        public int GetNumSpareRidingMounts()
+        // --- Speed-aware mount trading: per-category inventory counts + upgrade reserves ---
+
+        private static int CountInventory(Func<ItemObject, bool> predicate)
         {
             int count = 0;
             ItemRoster roster = PartyBase.MainParty.MobileParty.ItemRoster;
@@ -138,20 +139,86 @@ namespace AutoTrader
             {
                 ItemRosterElement e = roster[i];
                 ItemObject item = e.EquipmentElement.Item;
-                if (item == null)
-                {
-                    continue;
-                }
-
-                if (item.ItemType == ItemObject.ItemTypeEnum.Horse
-                    && item.HorseComponent != null
-                    && !item.HorseComponent.IsPackAnimal)
+                if (item != null && predicate(item))
                 {
                     count += e.Amount;
                 }
             }
-            AutoTraderHelpers.PrintDebugMessage(" - NumSpareRidingMounts: " + count.ToString());
             return count;
+        }
+
+        private static bool IsRegularMount(ItemObject item)
+        {
+            return item.HorseComponent != null && item.HorseComponent.IsMount
+                && item.ItemCategory != DefaultItemCategories.WarHorse
+                && item.ItemCategory != DefaultItemCategories.NobleHorse;
+        }
+
+        public int GetNumRegularRidingMounts()
+        {
+            return CountInventory(IsRegularMount);
+        }
+
+        public int GetNumWarMounts()
+        {
+            return CountInventory(item => item.HorseComponent != null && item.HorseComponent.IsMount
+                && item.ItemCategory == DefaultItemCategories.WarHorse);
+        }
+
+        public int GetNumNobleMounts()
+        {
+            return CountInventory(item => item.HorseComponent != null && item.HorseComponent.IsMount
+                && item.ItemCategory == DefaultItemCategories.NobleHorse);
+        }
+
+        public int GetNumPackAnimals()
+        {
+            return CountInventory(item => item.HorseComponent != null && item.HorseComponent.IsPackAnimal);
+        }
+
+        // Mounts of the given category that pending troop upgrades would consume.
+        private static int CountUpgradeDemand(ItemCategory category)
+        {
+            int count = 0;
+            TroopRoster roster = PartyBase.MainParty.MemberRoster;
+            for (int i = 0; i < roster.Count; i++)
+            {
+                CharacterObject c = roster.GetCharacterAtIndex(i);
+                if (c == null || c.IsHero)
+                {
+                    continue;
+                }
+                if (c.UpgradeRequiresItemFromCategory == category)
+                {
+                    count += roster.GetElementNumber(i);
+                }
+            }
+            return count;
+        }
+
+        public int GetWarMountUpgradeReserve()
+        {
+            return CountUpgradeDemand(DefaultItemCategories.WarHorse);
+        }
+
+        public int GetNobleMountUpgradeReserve()
+        {
+            return CountUpgradeDemand(DefaultItemCategories.NobleHorse);
+        }
+
+        // Current-item category checks (for CanBuy/CanSell), analogous to IsPackAnimal().
+        public bool IsWarMount()
+        {
+            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
+            return item != null && item.HorseComponent != null && item.HorseComponent.IsMount
+                && item.ItemCategory == DefaultItemCategories.WarHorse;
+        }
+
+        public bool IsNobleMount()
+        {
+            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
+            return item != null && item.HorseComponent != null && item.HorseComponent.IsMount
+                && item.ItemCategory == DefaultItemCategories.NobleHorse;
         }
         public int GetMerchantItemRosterSize()
         {

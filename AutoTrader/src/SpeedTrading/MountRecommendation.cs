@@ -1,24 +1,36 @@
 namespace AutoTrader.SpeedTrading
 {
-    /// <summary>Result of the speed optimization: how many mounts to buy/sell.</summary>
+    /// <summary>
+    /// Per-category mount trading plan produced by <see cref="PartySpeedAdvisor"/>.
+    /// Only regular riding horses are bought (for speed); war/noble mounts are protected
+    /// by their upgrade reserve and only sold as true surplus.
+    /// </summary>
     public readonly struct MountRecommendation
     {
-        /// <summary>Number of mounts that should additionally be bought (>= 0).</summary>
-        public readonly int BuyCount;
+        /// <summary>Regular riding horses to buy for the speed target (>= 0).</summary>
+        public readonly int BuyRegular;
 
-        /// <summary>Number of surplus mounts that should be sold (>= 0).</summary>
-        public readonly int SellCount;
+        /// <summary>Regular riding horses to sell as surplus (>= 0).</summary>
+        public readonly int SellRegular;
+
+        /// <summary>War mounts to sell as surplus, above the upgrade reserve (>= 0).</summary>
+        public readonly int SellWar;
+
+        /// <summary>Noble mounts to sell as surplus, above the upgrade reserve (>= 0).</summary>
+        public readonly int SellNoble;
 
         /// <summary>Human-readable rationale (for log/debug).</summary>
         public readonly string Reason;
 
-        public MountRecommendation(int buyCount, int sellCount, string reason)
+        public MountRecommendation(int buyRegular, int sellRegular, int sellWar, int sellNoble, string reason)
         {
-            BuyCount = buyCount;
-            SellCount = sellCount;
+            BuyRegular = buyRegular;
+            SellRegular = sellRegular;
+            SellWar = sellWar;
+            SellNoble = sellNoble;
             Reason = reason;
         }
 
-        public bool HasAction => BuyCount > 0 || SellCount > 0;
+        public bool HasAction => BuyRegular > 0 || SellRegular > 0 || SellWar > 0 || SellNoble > 0;
     }
 }

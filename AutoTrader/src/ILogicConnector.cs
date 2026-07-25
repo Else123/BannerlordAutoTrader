@@ -27,7 +27,14 @@ namespace AutoTrader
         int GetNumPartyMembers();
         int GetNumLivestockAnimals();
         int GetNumFootTroops();
-        int GetNumSpareRidingMounts();
+        int GetNumRegularRidingMounts();
+        int GetNumWarMounts();
+        int GetNumNobleMounts();
+        int GetNumPackAnimals();
+        int GetWarMountUpgradeReserve();
+        int GetNobleMountUpgradeReserve();
+        bool IsWarMount();
+        bool IsNobleMount();
         int GetMerchantItemRosterSize();
         List<string> GetLocks();
         bool IsItemLocked();

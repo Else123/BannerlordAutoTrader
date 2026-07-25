@@ -24,10 +24,12 @@ namespace AutoTrader
         private List<string> _soldItems;
         private List<string> _boughtItems;
 
-        // Speed-aware mount trading: per-run buy/sell budgets for riding horses
+        // Speed-aware mount trading: per-run, per-category mount budgets
         // (see ComputeMountBudgets / SpeedTrading.PartySpeedAdvisor).
-        private int _mountBuyBudget;
-        private int _mountSellBudget;
+        private int _buyRegularBudget;
+        private int _sellRegularBudget;
+        private int _sellWarBudget;
+        private int _sellNobleBudget;
 
         public AutoTraderLogic(ILogicConnector logicConnector)
         {
@@ -103,31 +105,45 @@ namespace AutoTrader
             }
         }
 
-        // Speed-aware mount trading: determines once per run how many riding horses to
-        // buy or sell as herd/speed surplus. The pure decision logic lives engine-free in
-        // SpeedTrading.PartySpeedAdvisor.
+        // Speed-aware mount trading: determines once per run how many mounts to buy or sell,
+        // per category, keeping war/noble mounts needed for troop upgrades. The pure decision
+        // logic lives engine-free in SpeedTrading.PartySpeedAdvisor.
         private void ComputeMountBudgets()
         {
-            _mountBuyBudget = 0;
-            _mountSellBudget = 0;
+            _buyRegularBudget = 0;
+            _sellRegularBudget = 0;
+            _sellWarBudget = 0;
+            _sellNobleBudget = 0;
             if (!AutoTraderConfig.SpeedAwareMountsValue)
             {
                 return;
             }
 
+            int warReserve = AutoTraderConfig.ReserveUpgradeMountsValue ? _logicConnector.GetWarMountUpgradeReserve() : 0;
+            int nobleReserve = AutoTraderConfig.ReserveUpgradeMountsValue ? _logicConnector.GetNobleMountUpgradeReserve() : 0;
+
             PartySnapshot snapshot = new PartySnapshot(
                 _logicConnector.GetNumPartyMembers(),
                 _logicConnector.GetNumFootTroops(),
-                _logicConnector.GetNumSpareRidingMounts(),
+                _logicConnector.GetNumRegularRidingMounts(),
+                _logicConnector.GetNumWarMounts(),
+                _logicConnector.GetNumNobleMounts(),
+                _logicConnector.GetNumPackAnimals(),
+                _logicConnector.GetNumLivestockAnimals(),
+                warReserve,
+                nobleReserve,
                 _logicConnector.GetCurrentWeight(),
                 _logicConnector.GetInventoryCapacity());
 
-            PartySpeedAdvisor advisor = new PartySpeedAdvisor(AutoTraderConfig.HerdThresholdPercentValue / 100f);
+            PartySpeedAdvisor advisor = new PartySpeedAdvisor(
+                AutoTraderConfig.HerdThresholdPercentValue / 100f,
+                AutoTraderConfig.SellNobleMountsValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
-            _mountBuyBudget = recommendation.BuyCount;
-            _mountSellBudget = recommendation.SellCount;
-            AutoTraderHelpers.PrintDebugMessage(
-                " - mount budgets: buy=" + _mountBuyBudget + " sell=" + _mountSellBudget + " (" + recommendation.Reason + ")");
+            _buyRegularBudget = recommendation.BuyRegular;
+            _sellRegularBudget = recommendation.SellRegular;
+            _sellWarBudget = recommendation.SellWar;
+            _sellNobleBudget = recommendation.SellNoble;
+            AutoTraderHelpers.PrintDebugMessage(" - mount plan: " + recommendation.Reason);
         }
 
         private void Sell()
@@ -393,8 +409,10 @@ namespace AutoTrader
                     return false;
                 }
 
-                // Riding mounts: buy up to the speed-optimal budget (mounts to mount foot troops).
-                if (AutoTraderConfig.SpeedAwareMountsValue && _mountBuyBudget > 0)
+                // Riding mounts: only buy regular horses for the speed target. War/noble
+                // mounts are upgrade material and are not bought for speed here.
+                bool isRegularMount = !_logicConnector.IsWarMount() && !_logicConnector.IsNobleMount();
+                if (AutoTraderConfig.SpeedAwareMountsValue && isRegularMount && _buyRegularBudget > 0)
                 {
                     // In fleet mode mounts occupy ship cargo -> respect capacity like other goods.
                     if (AutoTraderConfig.UseMaxFleetCapacityValue
@@ -405,13 +423,13 @@ namespace AutoTrader
                     }
                     if (CheckBasicBuyRequirements(amount, buyoutPrice))
                     {
-                        _mountBuyBudget--;
+                        _buyRegularBudget--;
                         return true;
                     }
                     return false;
                 }
 
-                AutoTraderHelpers.PrintDebugMessage(" - do not buy because we have enough mounts for party speed");
+                AutoTraderHelpers.PrintDebugMessage(" - do not buy mount (enough for speed, or war/noble kept for upgrades)");
                 return false;
             }
 
@@ -535,15 +553,30 @@ namespace AutoTrader
             // Special horse rule
             if (_logicConnector.IsHorse())
             {
-                // Speed-aware: protect riding mounts, sell only the herd/speed surplus.
+                // Speed-aware: protect ridable mounts, sell only true surplus per category.
                 if (AutoTraderConfig.SpeedAwareMountsValue && !_logicConnector.IsPackAnimal())
                 {
-                    if (_mountSellBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
+                    bool isNoble = _logicConnector.IsNobleMount();
+                    bool isWar = !isNoble && _logicConnector.IsWarMount();
+                    int categoryBudget = isNoble ? _sellNobleBudget : (isWar ? _sellWarBudget : _sellRegularBudget);
+
+                    if (categoryBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
                     {
-                        _mountSellBudget--;
+                        if (isNoble)
+                        {
+                            _sellNobleBudget--;
+                        }
+                        else if (isWar)
+                        {
+                            _sellWarBudget--;
+                        }
+                        else
+                        {
+                            _sellRegularBudget--;
+                        }
                         return true;
                     }
-                    AutoTraderHelpers.PrintDebugMessage("- keep riding mount for party speed");
+                    AutoTraderHelpers.PrintDebugMessage("- keep mount (needed for party speed or troop upgrades)");
                     return false;
                 }
 
