@@ -353,10 +353,10 @@ namespace AutoTrader
                 AutoTraderHelpers.PrintDebugMessage(" - skipping because it is not a consumable");
                 return true;
             }
-            if (AutoTraderSpecialRules.CheckBuyResupplyRule(_logicConnector, _logicConnector.GetItemAmount()))
+            if (!AutoTraderSpecialRules.NeedsMoreFood(_logicConnector))
             {
-                AutoTraderHelpers.PrintDebugMessage(" - skipping because of the resupply rule");
-                return true; ;
+                AutoTraderHelpers.PrintDebugMessage(" - skipping restock: food reserve is covered");
+                return true;
             }
             return false;
         }
@@ -608,11 +608,16 @@ namespace AutoTrader
 
                 if (ownAmount >= maxAmount)
                 {
-                    AutoTraderHelpers.PrintDebugMessage(" --> not buying because we have enough");
+                    AutoTraderHelpers.PrintDebugMessage(" --> not buying because we have enough of this item");
                     return false;
                 }
-                if (AutoTraderSpecialRules.CheckBuyConsumablesRules(_logicConnector, ownAmount))
+                if (AutoTraderConfig.ResupplyValue && AutoTraderSpecialRules.NeedsMoreFood(_logicConnector))
+                {
+                    AutoTraderHelpers.PrintDebugMessage(" - [food] restocking: "
+                        + _logicConnector.GetFoodDaysRemaining() + " days left, reserve is "
+                        + AutoTraderConfig.KeepFoodDaysValue);
                     return CheckBasicBuyRequirements(amount, buyoutPrice);
+                }
 
             }
 
@@ -796,19 +801,20 @@ namespace AutoTrader
                 }
             }
 
-            // Check amounts to keep
+            // Food: the days-of-food reserve is the hard floor, so a big party cannot be sold
+            // down to a handful of items. Only the surplus above it may go.
             if (_logicConnector.IsConsumable())
             {
-                int maxAmountToKeep = _logicConnector.IsItemGrain() ?
-                    AutoTraderConfig.KeepGrainsMaxValue : AutoTraderConfig.KeepConsumablesMaxValue;
-                int minAmountToKeep = _logicConnector.IsItemGrain() ?
-                    AutoTraderConfig.KeepGrainsMinValue : AutoTraderConfig.KeepConsumablesMinValue;
-
-                if (minAmountToKeep > amount)
+                if (!AutoTraderSpecialRules.MaySellFood(_logicConnector))
                 {
-                    AutoTraderHelpers.PrintDebugMessage("- do not sell because we dont have enough of this consumable");
+                    AutoTraderHelpers.PrintDebugMessage("- [food] keep: only "
+                        + _logicConnector.GetFoodDaysRemaining() + " days left, reserve is "
+                        + AutoTraderConfig.KeepFoodDaysValue);
                     return false;
                 }
+
+                int maxAmountToKeep = _logicConnector.IsItemGrain() ?
+                    AutoTraderConfig.KeepGrainsMaxValue : AutoTraderConfig.KeepConsumablesMaxValue;
                 if (maxAmountToKeep < amount)
                 {
                     AutoTraderHelpers.PrintDebugMessage("- selling because we have too much of this consumable");

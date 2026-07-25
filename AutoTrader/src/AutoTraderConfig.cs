@@ -19,6 +19,9 @@ namespace AutoTrader
         public static bool SimpleTradingAI { get; set; } = true;
         public static bool UseWeightedValue { get; set; } = false;
         public static int MaxCapacityValue { get; set; } = 15;
+        // Days of marching the party must always have food for. Replaces the old fixed item
+        // minimums, which starved a large party and overstocked a small one.
+        public static int KeepFoodDaysValue { get; set; } = 14;
         public static int KeepGrainsMinValue { get; set; } = 10;
         public static int KeepGrainsMaxValue { get; set; } = 100;
         public static int KeepConsumablesMinValue { get; set; } = 4;
@@ -151,6 +154,10 @@ namespace AutoTrader
                         else if (textReader.Name == "maxCapacityValue")
                         {
                             AutoTraderConfig.MaxCapacityValue = Int32.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "keepFoodDaysValue")
+                        {
+                            AutoTraderConfig.KeepFoodDaysValue = Int32.Parse(textReader.ReadString());
                         }
                         else if (textReader.Name == "keepGrainsMinValue")
                         {
@@ -340,6 +347,7 @@ namespace AutoTrader
                 textWriter.WriteElementString("buyThresholdValue", AutoTraderConfig.BuyThresholdValue.ToString());
                 textWriter.WriteElementString("sellThresholdValue", AutoTraderConfig.SellThresholdValue.ToString());
                 textWriter.WriteElementString("maxCapacityValue", AutoTraderConfig.MaxCapacityValue.ToString());
+                textWriter.WriteElementString("keepFoodDaysValue", AutoTraderConfig.KeepFoodDaysValue.ToString());
                 textWriter.WriteElementString("keepGrainsMinValue", AutoTraderConfig.KeepGrainsMinValue.ToString());
                 textWriter.WriteElementString("keepGrainsMaxValue", AutoTraderConfig.KeepGrainsMaxValue.ToString());
                 textWriter.WriteElementString("keepConsumablesMinValue", AutoTraderConfig.KeepConsumablesMinValue.ToString());

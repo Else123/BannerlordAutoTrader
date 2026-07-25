@@ -49,42 +49,18 @@ namespace AutoTrader
         }
 
         /// <summary>
-        /// Resupply
+        /// Whether the party is short of food. Measured in days of marching, which scales with
+        /// party size - a fixed item count starves a large party and overstocks a small one.
         /// </summary>
-        /// <param name="itemId"></param>
-        /// <returns></returns>
-        public static bool CheckBuyConsumablesRules(ILogicConnector logicConnector, int currentAmount)
+        public static bool NeedsMoreFood(ILogicConnector logicConnector)
         {
-            if (AutoTraderConfig.ResupplyValue)
-                return CheckBuyResupplyRule(logicConnector, currentAmount);
-            return false;
+            return logicConnector.GetFoodDaysRemaining() < AutoTraderConfig.KeepFoodDaysValue;
         }
 
-        /// <returns>
-        /// True if the given item is below the restock value
-        /// False if not
-        /// </returns>
-        public static bool CheckBuyResupplyRule(ILogicConnector logicConnector, int currentAmount)
+        /// <summary>Food may only be sold once the reserve is comfortably covered.</summary>
+        public static bool MaySellFood(ILogicConnector logicConnector)
         {
-            // Find item stack in current inventory
-
-            // Resupply grain
-            if (logicConnector.IsItemGrain())
-            {
-                if (currentAmount < AutoTraderConfig.KeepGrainsMinValue)
-                {
-                    return true;
-                }
-                return false;
-            }
-            else
-            {
-                if (currentAmount < AutoTraderConfig.KeepConsumablesMinValue)
-                {
-                    return true;
-                }
-                return false;
-            }
+            return logicConnector.GetFoodDaysRemaining() > AutoTraderConfig.KeepFoodDaysValue;
         }
 
     }

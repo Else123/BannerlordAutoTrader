@@ -156,19 +156,19 @@ namespace AutoTrader
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public bool Resupply { get; set; } = true;
 
-        [SettingPropertyInteger("Keep grain: min", 0, 500, "0", Order = 3, RequireRestart = false)]
+        [SettingPropertyInteger("Keep food for (days)", 0, 60, "0", Order = 3, RequireRestart = false,
+            HintText = "The food floor: never sell food below this many days of marching, and restock up to it. " +
+                "Scales with the party, unlike a fixed item count.")]
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
-        public int KeepGrainsMin { get; set; } = 10;
+        public int KeepFoodDays { get; set; } = 14;
 
-        [SettingPropertyInteger("Keep grain: max", 0, 500, "0", Order = 4, RequireRestart = false)]
+        [SettingPropertyInteger("Max grain per stack", 0, 500, "0", Order = 4, RequireRestart = false,
+            HintText = "Anti-hoarding cap for grain, applied only above the food reserve.")]
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public int KeepGrainsMax { get; set; } = 100;
 
-        [SettingPropertyInteger("Keep other food: min", 0, 100, "0", Order = 5, RequireRestart = false)]
-        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
-        public int KeepConsumablesMin { get; set; } = 4;
-
-        [SettingPropertyInteger("Keep other food: max", 0, 200, "0", Order = 6, RequireRestart = false)]
+        [SettingPropertyInteger("Max other food per stack", 0, 200, "0", Order = 5, RequireRestart = false,
+            HintText = "Anti-hoarding cap per other food item, applied only above the food reserve.")]
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public int KeepConsumablesMax { get; set; } = 20;
 
@@ -305,9 +305,8 @@ namespace AutoTrader
             AutoTraderConfig.BuyConsumablesValue = s.BuyConsumables;
             AutoTraderConfig.SellConsumablesValue = s.SellConsumables;
             AutoTraderConfig.ResupplyValue = s.Resupply;
-            AutoTraderConfig.KeepGrainsMinValue = s.KeepGrainsMin;
+            AutoTraderConfig.KeepFoodDaysValue = s.KeepFoodDays;
             AutoTraderConfig.KeepGrainsMaxValue = s.KeepGrainsMax;
-            AutoTraderConfig.KeepConsumablesMinValue = s.KeepConsumablesMin;
             AutoTraderConfig.KeepConsumablesMaxValue = s.KeepConsumablesMax;
 
             // One hardwood target, two possible acquisition routes.
@@ -374,9 +373,9 @@ namespace AutoTrader
                 KeepWages = 7,
                 MaxTotalCapacity = 60,
                 BuyGoods = false,
-                KeepGrainsMin = 20,
+                // An army on campaign should not run out of food far from a town.
+                KeepFoodDays = 25,
                 KeepGrainsMax = 150,
-                KeepConsumablesMin = 10,
                 KeepConsumablesMax = 40
             });
 

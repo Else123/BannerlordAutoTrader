@@ -297,6 +297,17 @@ namespace AutoTrader
             return result;
         }
 
+        /// <summary>
+        /// Days the party can keep marching on the food it carries - the same figure the game
+        /// shows the player. Scales with party size, unlike a fixed item count.
+        /// </summary>
+        public int GetFoodDaysRemaining()
+        {
+            int result = MobileParty.MainParty.GetNumDaysForFoodToLast();
+            AutoTraderHelpers.PrintDebugMessage(" - FoodDaysRemaining: " + result.ToString());
+            return result;
+        }
+
         // --- Warehouse: store goods the local merchant could not afford ------
 
         /// <summary>True while trading in a town owned by the player clan.</summary>
