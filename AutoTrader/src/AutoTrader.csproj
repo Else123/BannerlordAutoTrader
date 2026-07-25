@@ -183,6 +183,9 @@
     <Compile Include="GUI\AutoTraderState.cs" />
     <Compile Include="GUI\IAutoTraderStateHandler.cs" />
     <Compile Include="ILogicConnector.cs" />
+    <Compile Include="SpeedTrading\PartySnapshot.cs" />
+    <Compile Include="SpeedTrading\MountRecommendation.cs" />
+    <Compile Include="SpeedTrading\PartySpeedAdvisor.cs" />
     <Compile Include="Warsails\WarsailsDetector.cs" />
     <Compile Include="Warsails\WarsailsHelper.cs" />
   </ItemGroup>

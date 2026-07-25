@@ -39,6 +39,11 @@ namespace AutoTrader
 
         public static bool BuyHorsesValue { get; set; } = true;
         public static bool SellHorsesValue { get; set; } = false;
+
+        // Speed-aware mount trading: Reittiere so handeln, dass die Party-Speed optimal bleibt.
+        public static bool SpeedAwareMountsValue { get; set; } = true;
+        // Herd-Schwelle als Prozent der Party-Groesse (Tiere darueber erzeugen Speed-Malus).
+        public static int HerdThresholdPercentValue { get; set; } = 105;
         public static bool BuyWeaponsValue { get; set; } = false;
         public static bool SellWeaponsValue { get; set; } = true;
         public static bool BuyArmorValue { get; set; } = false;
@@ -186,6 +191,14 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.SellHorsesValue = Boolean.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "speedAwareMountsValue")
+                        {
+                            AutoTraderConfig.SpeedAwareMountsValue = Boolean.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "herdThresholdPercentValue")
+                        {
+                            AutoTraderConfig.HerdThresholdPercentValue = Int32.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "buyArmorValue")
                         {
                             AutoTraderConfig.BuyArmorValue = Boolean.Parse(textReader.ReadString());
@@ -277,6 +290,8 @@ namespace AutoTrader
 
                 textWriter.WriteElementString("buyHorsesValue", AutoTraderConfig.BuyHorsesValue.ToString());
                 textWriter.WriteElementString("sellHorsesValue", AutoTraderConfig.SellHorsesValue.ToString());
+                textWriter.WriteElementString("speedAwareMountsValue", AutoTraderConfig.SpeedAwareMountsValue.ToString());
+                textWriter.WriteElementString("herdThresholdPercentValue", AutoTraderConfig.HerdThresholdPercentValue.ToString());
                 textWriter.WriteElementString("buyArmorValue", AutoTraderConfig.BuyArmorValue.ToString());
                 textWriter.WriteElementString("sellArmorValue", AutoTraderConfig.SellArmorValue.ToString());
                 textWriter.WriteElementString("buyWeaponsValue", AutoTraderConfig.BuyWeaponsValue.ToString());

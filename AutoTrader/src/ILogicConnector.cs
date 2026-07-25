@@ -26,6 +26,8 @@ namespace AutoTrader
         List<string> GetPlayerItemRosterNames();
         int GetNumPartyMembers();
         int GetNumLivestockAnimals();
+        int GetNumFootTroops();
+        int GetNumSpareRidingMounts();
         int GetMerchantItemRosterSize();
         List<string> GetLocks();
         bool IsItemLocked();

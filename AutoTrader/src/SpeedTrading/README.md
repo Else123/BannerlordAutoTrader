@@ -47,9 +47,18 @@ Wenn der Spieler `UseMaxFleetCapacityValue` aktiviert (nur Schiffskapazitaet zae
 - `MountRecommendation.cs` — Ergebnis: BuyCount / SellCount / Begruendung
 - `PartySpeedAdvisor.cs` — Kernheuristik: Zielbestand = min(Fusssoldaten, Herd-Schwelle - Marge)
 
-Diese Klassen sind noch NICHT im `AutoTrader.csproj` (bewusst, bis verdrahtet).
+**Status: verdrahtet** — im `AutoTrader.csproj` und genutzt von `AutoTraderLogic.ComputeMountBudgets()`.
 
-## Integrationsschritte (wenn Toolchain steht)
+## Umsetzungsstand
+
+**Implementiert auf `feature/speed-aware-mounts`** (noch NICHT kompiliert-verifiziert -
+Toolchain fehlt). Umgesetzt: Connector-Primitive (`GetNumFootTroops`,
+`GetNumSpareRidingMounts`), Budget-Berechnung (`ComputeMountBudgets`), Kauf-Gate
+(Reitpferde bis Speed-Ziel, Flotten-Kapazitaets-Cap), Verkauf-Gate (Reitpferde
+schuetzen, nur Herd-Ueberschuss abstossen), Config-Felder `SpeedAwareMountsValue` /
+`HerdThresholdPercentValue`. **Offen:** GUI-Expose der neuen Settings + Build/Ingame-Test.
+
+### Referenz: die geplanten Schritte
 
 1. **`ILogicConnector` + `AutoTraderLogicConnector` erweitern** um die fehlenden Primitive:
    - `int GetNumFootTroops()` -> aus `MemberRoster` (nicht-berittene Formationsklassen)

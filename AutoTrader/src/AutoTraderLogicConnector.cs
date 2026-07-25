@@ -105,6 +105,54 @@ namespace AutoTrader
             AutoTraderHelpers.PrintDebugMessage(" - NumLivestockAnimals: " + PartyBase.MainParty.ItemRoster.NumberOfLivestockAnimals.ToString());
             return PartyBase.MainParty.MobileParty.ItemRoster.NumberOfLivestockAnimals;
         }
+
+        // Fusssoldaten der Party (nicht-berittene Formationsklassen) - Basis fuer das Speed-Optimum.
+        public int GetNumFootTroops()
+        {
+            int count = 0;
+            TroopRoster roster = PartyBase.MainParty.MemberRoster;
+            for (int i = 0; i < roster.Count; i++)
+            {
+                CharacterObject c = roster.GetCharacterAtIndex(i);
+                if (c == null || c.IsHero)
+                {
+                    continue;
+                }
+
+                FormationClass fc = c.DefaultFormationClass;
+                if (fc != FormationClass.Cavalry && fc != FormationClass.HorseArcher)
+                {
+                    count += roster.GetElementNumber(i);
+                }
+            }
+            AutoTraderHelpers.PrintDebugMessage(" - NumFootTroops: " + count.ToString());
+            return count;
+        }
+
+        // Freie Reitpferde im Inventar (Reittiere, keine Packtiere) - zaehlen fuers Aufsitzen der Infanterie.
+        public int GetNumSpareRidingMounts()
+        {
+            int count = 0;
+            ItemRoster roster = PartyBase.MainParty.MobileParty.ItemRoster;
+            for (int i = 0; i < roster.Count; i++)
+            {
+                ItemRosterElement e = roster[i];
+                ItemObject item = e.EquipmentElement.Item;
+                if (item == null)
+                {
+                    continue;
+                }
+
+                if (item.ItemType == ItemObject.ItemTypeEnum.Horse
+                    && item.HorseComponent != null
+                    && !item.HorseComponent.IsPackAnimal)
+                {
+                    count += e.Amount;
+                }
+            }
+            AutoTraderHelpers.PrintDebugMessage(" - NumSpareRidingMounts: " + count.ToString());
+            return count;
+        }
         public int GetMerchantItemRosterSize()
         {
             if (_isCaravan)

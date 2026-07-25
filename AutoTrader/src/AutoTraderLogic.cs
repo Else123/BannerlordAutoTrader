@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
+using AutoTrader.SpeedTrading;
 
 [assembly: InternalsVisibleTo("AutoTraderTests")]
 namespace AutoTrader
@@ -22,6 +23,11 @@ namespace AutoTrader
 
         private List<string> _soldItems;
         private List<string> _boughtItems;
+
+        // Speed-aware mount trading: pro Trade-Durchlauf berechnete Kauf-/Verkaufskontingente
+        // fuer Reitpferde (siehe ComputeMountBudgets / SpeedTrading.PartySpeedAdvisor).
+        private int _mountBuyBudget;
+        private int _mountSellBudget;
 
         public AutoTraderLogic(ILogicConnector logicConnector)
         {
@@ -49,6 +55,7 @@ namespace AutoTrader
             _boughtItems = new List<string>();
             _availableMerchantGold = _logicConnector.GetMerchantGold();
             UpdateAvailableInventoryCapacity();
+            ComputeMountBudgets();
 
             // Set trading state
             IsTradingActive = true;
@@ -94,6 +101,33 @@ namespace AutoTrader
                     "I instructed to load them on our carts but you may want to rethink your orders.").ToString()
                 );
             }
+        }
+
+        // Speed-aware mount trading: bestimmt einmalig pro Trade-Durchlauf, wie viele
+        // Reitpferde gekauft bzw. als Herd-/Speed-Ueberschuss verkauft werden sollen.
+        // Die reine Entscheidungslogik liegt engine-frei in SpeedTrading.PartySpeedAdvisor.
+        private void ComputeMountBudgets()
+        {
+            _mountBuyBudget = 0;
+            _mountSellBudget = 0;
+            if (!AutoTraderConfig.SpeedAwareMountsValue)
+            {
+                return;
+            }
+
+            PartySnapshot snapshot = new PartySnapshot(
+                _logicConnector.GetNumPartyMembers(),
+                _logicConnector.GetNumFootTroops(),
+                _logicConnector.GetNumSpareRidingMounts(),
+                _logicConnector.GetCurrentWeight(),
+                _logicConnector.GetInventoryCapacity());
+
+            PartySpeedAdvisor advisor = new PartySpeedAdvisor(AutoTraderConfig.HerdThresholdPercentValue / 100f);
+            MountRecommendation recommendation = advisor.Recommend(snapshot);
+            _mountBuyBudget = recommendation.BuyCount;
+            _mountSellBudget = recommendation.SellCount;
+            AutoTraderHelpers.PrintDebugMessage(
+                " - mount budgets: buy=" + _mountBuyBudget + " sell=" + _mountSellBudget + " (" + recommendation.Reason + ")");
         }
 
         private void Sell()
@@ -350,10 +384,35 @@ namespace AutoTrader
             // Horses
             if (_logicConnector.IsHorse())
             {
-                if (AutoTraderSpecialRules.CheckBuyHorsesRules(_logicConnector, buyoutPrice, _availablePlayerGold))
-                    return CheckBasicBuyRequirements(amount, buyoutPrice);
-                AutoTraderHelpers.PrintDebugMessage(" - do not buy because we need no additional horses");
-                return false; // buy no other horses
+                // Pack animals keep the original resupply rule.
+                if (_logicConnector.IsPackAnimal())
+                {
+                    if (AutoTraderSpecialRules.CheckBuyHorsesRules(_logicConnector, buyoutPrice, _availablePlayerGold))
+                        return CheckBasicBuyRequirements(amount, buyoutPrice);
+                    AutoTraderHelpers.PrintDebugMessage(" - do not buy because we need no additional pack animals");
+                    return false;
+                }
+
+                // Riding mounts: buy up to the speed-optimal budget (mounts to mount foot troops).
+                if (AutoTraderConfig.SpeedAwareMountsValue && _mountBuyBudget > 0)
+                {
+                    // In fleet mode mounts occupy ship cargo -> respect capacity like other goods.
+                    if (AutoTraderConfig.UseMaxFleetCapacityValue
+                        && _logicConnector.GetItemWeight() > _availableInventoryCapacity)
+                    {
+                        AutoTraderHelpers.PrintDebugMessage(" - do not buy mount: fleet capacity reached");
+                        return false;
+                    }
+                    if (CheckBasicBuyRequirements(amount, buyoutPrice))
+                    {
+                        _mountBuyBudget--;
+                        return true;
+                    }
+                    return false;
+                }
+
+                AutoTraderHelpers.PrintDebugMessage(" - do not buy because we have enough mounts for party speed");
+                return false;
             }
 
             // Hardwood
@@ -476,6 +535,18 @@ namespace AutoTrader
             // Special horse rule
             if (_logicConnector.IsHorse())
             {
+                // Speed-aware: protect riding mounts, sell only the herd/speed surplus.
+                if (AutoTraderConfig.SpeedAwareMountsValue && !_logicConnector.IsPackAnimal())
+                {
+                    if (_mountSellBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
+                    {
+                        _mountSellBudget--;
+                        return true;
+                    }
+                    AutoTraderHelpers.PrintDebugMessage("- keep riding mount for party speed");
+                    return false;
+                }
+
                 if (_logicConnector.IsPackAnimal() && AutoTraderConfig.SellHorsesValue)
                 {
                     AutoTraderHelpers.PrintDebugMessage("- do not sell because its a pack animal");
