@@ -317,6 +317,8 @@ namespace AutoTrader
             // scan far for price differences, and use the hold for cargo.
             yield return new AutoTraderPreset(Id, "merchant", "Merchant (max margin)", () => new AutoTraderMcmSettings
             {
+                // The thresholds below only apply in threshold mode - the rumour-based mode ignores them.
+                SimpleTradingAI = false,
                 SearchRadius = 600,
                 UseInventorySpace = 100,
                 MaxCapacity = 25,
