@@ -22,11 +22,6 @@ namespace AutoTrader.SpeedTrading
         /// </summary>
         private const float CapacityPerPackAnimal = 100f;
 
-        /// <summary>
-        /// Cargo capacity one spare mount provides: SpareMountsFactor (2) * _itemAverageWeight (10).
-        /// </summary>
-        private const float CapacityPerSpareMount = 20f;
-
         private readonly bool _allowNobleSell;
         private readonly bool _managePackHerd;
         private readonly bool _manageLivestockHerd;
@@ -84,9 +79,11 @@ namespace AutoTrader.SpeedTrading
             int buyRegular = Math.Max(0, target - ridable);
 
             // Pack animals are the party's carriers, so selling them is capacity-guarded below.
-            // Ridable mounts beyond the foot-soldier count are not: they add only a little capacity
-            // (CapacityPerSpareMount) while contributing to a herd penalty that scales far higher,
-            // and guarding them would deadlock an overburdened party into never shedding its herd.
+            // Ridable mounts beyond the foot-soldier count are not: they add only 20 capacity each
+            // while contributing to a herd penalty that scales far higher, and guarding them would
+            // deadlock an overburdened party into never shedding its herd. Animals themselves weigh
+            // nothing (DefaultInventoryCapacityModel returns 0 for anything with a HorseComponent),
+            // so buying them can never overburden the party either.
             float spareCapacity = p.InventoryCapacity - p.InventoryWeight;
 
             // Sell mounts beyond the foot-soldier count: regular first, then war above its upgrade

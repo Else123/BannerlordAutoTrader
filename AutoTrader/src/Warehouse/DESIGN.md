@@ -110,14 +110,15 @@ touched. No Harmony patch, no fighting the caravan AI - just react to arrivals.
 
 One owner per decision, mode selectors where behaviour is exclusive:
 
-- **Warehouse**: `Off` | `Designated town` | `All owned towns`
-- Designated town (dropdown of owned towns, when applicable)
-- **Deposit unsold goods**: on/off (Phase 1)
-- **Consignment**: `Off` | `Sell locally each day` (Phase 2)
-- Daily consignment share of merchant gold (%) - default 25
-- **Caravan distribution**: `Off` | `Load from warehouse` (Phase 3)
+As shipped, one mode selector owns the whole feature, and it applies to **every** town the
+player clan owns - the per-town "designated town" scoping from the original sketch was
+dropped as needless complexity:
+
+- **Warehouse**: `Off` | `Store what the merchant cannot afford` | `Store and sell locally
+  each day` | `Store, sell locally and let caravans haul it away`
+- Daily share of town gold (%) - default 25
+- Minimum price to consign - default 0
 - Caravan commission (%) - default 15
-- Minimum item price to consign - default 0
 
 ## Open questions to settle before coding
 

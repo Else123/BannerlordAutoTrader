@@ -190,7 +190,8 @@ namespace AutoTrader
         // --- 5. Animals (single owner of every animal decision) --------------
 
         [SettingPropertyDropdown("Mount management", Order = 0, RequireRestart = false,
-            HintText = "Speed-optimal keeps one spare mount per foot soldier and sheds the rest. Off falls back to the manual toggles below.")]
+            HintText = "Speed-optimal keeps one spare mount per foot soldier and sheds the rest. Off stops trading riding " +
+                "mounts for speed (selling them then follows the manual toggle); pack animals and livestock keep their own settings below.")]
         [SettingPropertyGroup(AnimalsGroup, GroupOrder = 4)]
         public Dropdown<string> MountManagement { get; set; } = Choice(MountModes, 1);
 

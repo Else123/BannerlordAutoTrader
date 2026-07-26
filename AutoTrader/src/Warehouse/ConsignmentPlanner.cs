@@ -28,7 +28,9 @@ namespace AutoTrader.Warehouse
             {
                 return 0;
             }
-            return Math.Max(0, townGold / 100 * _dailySharePercent);
+            // Multiply first: dividing first truncated the share away for any town holding less
+            // than 100 gold, and lost most of it for anything not a clean multiple of 100.
+            return Math.Max(0, townGold * _dailySharePercent / 100);
         }
 
         /// <summary>

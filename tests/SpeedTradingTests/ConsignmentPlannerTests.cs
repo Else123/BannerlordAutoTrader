@@ -13,6 +13,14 @@ namespace SpeedTradingTests
         }
 
         [Fact]
+        public void DailyBudget_KeepsTheShareForSmallAndUnevenTownGold()
+        {
+            // Dividing before multiplying truncated these to 0 and 50 respectively.
+            Assert.Equal(90, new ConsignmentPlanner(dailySharePercent: 100).DailyBudget(90));
+            Assert.Equal(62, new ConsignmentPlanner(dailySharePercent: 25).DailyBudget(250));
+        }
+
+        [Fact]
         public void DailyBudget_IsZeroWithoutGoldOrShare()
         {
             Assert.Equal(0, new ConsignmentPlanner(25).DailyBudget(0));

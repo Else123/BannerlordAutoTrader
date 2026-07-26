@@ -166,10 +166,6 @@ namespace AutoTrader
             _sellNobleBudget = 0;
             _sellPackBudget = 0;
             _sellLivestockBudget = 0;
-            if (!AutoTraderConfig.SpeedAwareMountsValue)
-            {
-                return;
-            }
 
             int warReserve = AutoTraderConfig.ReserveUpgradeMountsValue ? _logicConnector.GetWarMountUpgradeReserve() : 0;
             int nobleReserve = AutoTraderConfig.ReserveUpgradeMountsValue ? _logicConnector.GetNobleMountUpgradeReserve() : 0;
@@ -199,13 +195,20 @@ namespace AutoTrader
                 AutoTraderConfig.KeepLivestockReserveValue,
                 AutoTraderConfig.UseInventorySpaceValue);
             MountRecommendation recommendation = advisor.Recommend(snapshot);
-            _buyRegularBudget = recommendation.BuyRegular;
+
+            // Pack animals and livestock have their own settings, so they are managed regardless of
+            // the mount mode. Only the ridable mounts are traded for party speed, so those budgets
+            // stay at zero when mount management is off.
             _buyPackBudget = recommendation.BuyPack;
-            _sellRegularBudget = recommendation.SellRegular;
-            _sellWarBudget = recommendation.SellWar;
-            _sellNobleBudget = recommendation.SellNoble;
             _sellPackBudget = recommendation.SellPack;
             _sellLivestockBudget = recommendation.SellLivestock;
+            if (AutoTraderConfig.SpeedAwareMountsValue)
+            {
+                _buyRegularBudget = recommendation.BuyRegular;
+                _sellRegularBudget = recommendation.SellRegular;
+                _sellWarBudget = recommendation.SellWar;
+                _sellNobleBudget = recommendation.SellNoble;
+            }
             AutoTraderHelpers.PrintDebugMessage(" - mount plan: " + recommendation.Reason);
         }
 
@@ -525,10 +528,18 @@ namespace AutoTrader
                 return false;
             }
 
-            // Riding mounts: only buy regular horses for the speed target. War/noble mounts
-            // are upgrade material and are not bought for speed here.
+            // Riding mounts are only bought to reach the speed target, so nothing is bought here
+            // while mount management is off - pack animals above keep their own setting.
+            if (!AutoTraderConfig.SpeedAwareMountsValue)
+            {
+                AutoTraderHelpers.PrintDebugMessage(" - do not buy riding mount: mount management is off");
+                return false;
+            }
+
+            // Only regular horses count for the speed target. War/noble mounts are upgrade
+            // material and are not bought for speed here.
             bool isRegularMount = !_logicConnector.IsWarMount() && !_logicConnector.IsNobleMount();
-            if (AutoTraderConfig.SpeedAwareMountsValue && isRegularMount && _buyRegularBudget > 0)
+            if (isRegularMount && _buyRegularBudget > 0)
             {
                 // In fleet mode mounts occupy ship cargo -> respect capacity like other goods.
                 if (AutoTraderConfig.UseMaxFleetCapacityValue
@@ -715,7 +726,7 @@ namespace AutoTrader
             // Special horse rule
             if (_logicConnector.IsHorse())
             {
-                if (AutoTraderConfig.SpeedAwareMountsValue && _logicConnector.IsPackAnimal())
+                if (_logicConnector.IsPackAnimal())
                 {
                     // Honor the explicit "protect pack animals" setting even in speed-aware mode.
                     if (AutoTraderConfig.ProtectPackAnimalsValue)
@@ -777,11 +788,8 @@ namespace AutoTrader
                     return false;
                 }
 
-                if (_logicConnector.IsPackAnimal() && AutoTraderConfig.SellHorsesValue)
-                {
-                    AutoTraderHelpers.PrintDebugMessage("- do not sell because its a pack animal");
-                    return false;
-                }
+                // Riding mounts in manual mode fall through to the generic price logic, gated by
+                // the "Sell horses (manual mode)" toggle in the item filter.
             }
 
             // Food: the days-of-food reserve is the hard floor, so a big party cannot be sold
