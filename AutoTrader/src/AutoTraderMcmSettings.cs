@@ -22,10 +22,17 @@ namespace AutoTrader
     ///  - Mode selectors instead of booleans that quietly disable other settings. Where a value
     ///    only applies in one mode, the hint says so.
     ///  - All animal decisions live in the Animals section, not spread across Buy and Sell.
+    ///
+    /// While this fork is being tested, the defaults deliberately switch every feature ON
+    /// (warehouse including caravan pickup, both hardwood supply routes, debug logging) so that a
+    /// playthrough exercises everything without hunting through the menu. Revisit these before a
+    /// public release, where quieter defaults would make the better first impression.
     /// </summary>
     public sealed class AutoTraderMcmSettings : AttributeGlobalSettings<AutoTraderMcmSettings>
     {
-        public override string Id => "AutoTraderSpeed_v2";
+        // Bumped when the defaults below change in a way that must reach existing installs: MCM
+        // keeps stored values for keys it already knows, so a new default alone would not apply.
+        public override string Id => "AutoTraderSpeed_v3";
 
         public override string DisplayName => "AutoTrader Speed (Dev)";
 
@@ -175,7 +182,7 @@ namespace AutoTrader
         [SettingPropertyDropdown("Hardwood supply", Order = 7, RequireRestart = false,
             HintText = "How to keep hardwood stocked for smithing: buy it directly, buy cheap weapons that smelt into it, or both.")]
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
-        public Dropdown<string> HardwoodSupply { get; set; } = Choice(HardwoodSupplies, 0);
+        public Dropdown<string> HardwoodSupply { get; set; } = Choice(HardwoodSupplies, 3);
 
         [SettingPropertyInteger("Hardwood target", 0, 500, "0", Order = 8, RequireRestart = false,
             HintText = "Keep buying hardwood (or smelt fodder) until the party holds this much.")]
@@ -244,7 +251,7 @@ namespace AutoTrader
             HintText = "In towns your clan owns, store goods the merchant ran out of gold for in the town stash, " +
                 "instead of hauling them on. Consignment then sells a slice into that market every day.")]
         [SettingPropertyGroup(WarehouseGroup, GroupOrder = 5)]
-        public Dropdown<string> WarehouseMode { get; set; } = Choice(WarehouseModes, 0);
+        public Dropdown<string> WarehouseMode { get; set; } = Choice(WarehouseModes, 3);
 
         [SettingPropertyInteger("Daily share of town gold (%)", 0, 100, "0", Order = 1, RequireRestart = false,
             HintText = "How much of the town's gold may go into warehouse sales per day. Lower means slower but gentler on prices.")]
