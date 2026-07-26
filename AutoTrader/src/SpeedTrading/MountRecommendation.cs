@@ -46,5 +46,22 @@ namespace AutoTrader.SpeedTrading
 
         public bool HasAction => BuyRegular > 0 || BuyPack > 0 || SellRegular > 0 || SellWar > 0
             || SellNoble > 0 || SellPack > 0 || SellLivestock > 0;
+
+        /// <summary>
+        /// Applies the mount-management mode. Only the ridable mounts are traded for party speed,
+        /// so those drop out when the mode is off; pack animals and livestock have their own
+        /// settings and their own reasons (cargo capacity, herd size) and are kept either way.
+        ///
+        /// This lives here, not in the trade loop, so it can be unit tested - turning the mode off
+        /// used to zero every budget, which silently stopped pack animals from being bought too.
+        /// </summary>
+        public MountRecommendation ForMountMode(bool speedAwareMounts)
+        {
+            if (speedAwareMounts)
+            {
+                return this;
+            }
+            return new MountRecommendation(0, BuyPack, 0, 0, 0, SellPack, SellLivestock, Reason);
+        }
     }
 }

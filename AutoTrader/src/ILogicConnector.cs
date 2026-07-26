@@ -48,6 +48,10 @@ namespace AutoTrader
         bool IsItemGrain();
         bool IsItemHardwood();
         int GetPartyHardwoodIndex();
+        // On the interface so the logic never has to cast to the concrete connector - a test
+        // double can implement these as no-ops.
+        void BeginInventoryDisplayRefresh();
+        void TickInventoryDisplayRefresh();
         int GetFoodDaysRemaining();
         bool IsInOwnedTown();
         int DepositItemToStash(string itemName);

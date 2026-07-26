@@ -17,6 +17,46 @@ namespace SpeedTradingTests
         }
 
         [Fact]
+        public void MountModeOff_StillBuysPackAnimalsForCargo()
+        {
+            var advisor = new PartySpeedAdvisor(cargoUtilizationPercent: 100);
+            // Cargo is 200 over capacity and the herd has room, so mules are still needed. The
+            // surplus riding mounts (80 for 50 foot soldiers) must NOT be traded in manual mode.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 80, pack: 10,
+                weight: 1200f, capacity: 1000f));
+            Assert.Equal(30, plan.SellRegular);
+            Assert.Equal(2, plan.BuyPack);
+
+            var manual = plan.ForMountMode(false);
+            Assert.Equal(0, manual.BuyRegular);
+            Assert.Equal(0, manual.SellRegular);
+            Assert.Equal(0, manual.SellWar);
+            Assert.Equal(0, manual.SellNoble);
+            Assert.Equal(2, manual.BuyPack);
+        }
+
+        [Fact]
+        public void MountModeOff_StillShedsTheLivestockHerd()
+        {
+            var advisor = new PartySpeedAdvisor(manageLivestockHerd: true);
+            // Herd is 90 pack + 30 livestock over 100 members -> 20 too many.
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 80, pack: 90, livestock: 30));
+            var manual = plan.ForMountMode(false);
+            Assert.Equal(20, manual.SellLivestock);
+            Assert.Equal(0, manual.SellRegular);
+        }
+
+        [Fact]
+        public void MountModeOn_LeavesThePlanUntouched()
+        {
+            var advisor = new PartySpeedAdvisor();
+            var plan = advisor.Recommend(Snapshot(members: 100, foot: 50, regular: 80));
+            var speedAware = plan.ForMountMode(true);
+            Assert.Equal(plan.SellRegular, speedAware.SellRegular);
+            Assert.Equal(30, speedAware.SellRegular);
+        }
+
+        [Fact]
         public void EmptyParty_DoesNothing()
         {
             var advisor = new PartySpeedAdvisor();

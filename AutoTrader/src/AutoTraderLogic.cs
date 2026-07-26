@@ -15,8 +15,6 @@ namespace AutoTrader
 
         private readonly ILogicConnector _logicConnector;
 
-        private AutoTraderLogicConnector Connector => (AutoTraderLogicConnector)_logicConnector;
-
         private float _availableInventoryCapacity;
         private int _availablePlayerGold;
         private int _availableMerchantGold;
@@ -54,7 +52,7 @@ namespace AutoTrader
 
         public void OnApplicationTick()
         {
-            Connector.TickInventoryDisplayRefresh();
+            _logicConnector.TickInventoryDisplayRefresh();
         }
 
         public void PerformAutoTrade(bool isCaravan = false)
@@ -98,7 +96,7 @@ namespace AutoTrader
                 Sell();
                 BuyProcess(BuyFilter);
                 DepositUnsoldGoods();
-                Connector.BeginInventoryDisplayRefresh();
+                _logicConnector.BeginInventoryDisplayRefresh();
                 PrintTradeSummary(_availablePlayerGold - startAvailableGold);
             } catch ( Exception e)
             {
@@ -194,21 +192,16 @@ namespace AutoTrader
                 AutoTraderConfig.ManageLivestockHerdValue,
                 AutoTraderConfig.KeepLivestockReserveValue,
                 AutoTraderConfig.UseInventorySpaceValue);
-            MountRecommendation recommendation = advisor.Recommend(snapshot);
+            MountRecommendation recommendation = advisor.Recommend(snapshot)
+                .ForMountMode(AutoTraderConfig.SpeedAwareMountsValue);
 
-            // Pack animals and livestock have their own settings, so they are managed regardless of
-            // the mount mode. Only the ridable mounts are traded for party speed, so those budgets
-            // stay at zero when mount management is off.
+            _buyRegularBudget = recommendation.BuyRegular;
             _buyPackBudget = recommendation.BuyPack;
+            _sellRegularBudget = recommendation.SellRegular;
+            _sellWarBudget = recommendation.SellWar;
+            _sellNobleBudget = recommendation.SellNoble;
             _sellPackBudget = recommendation.SellPack;
             _sellLivestockBudget = recommendation.SellLivestock;
-            if (AutoTraderConfig.SpeedAwareMountsValue)
-            {
-                _buyRegularBudget = recommendation.BuyRegular;
-                _sellRegularBudget = recommendation.SellRegular;
-                _sellWarBudget = recommendation.SellWar;
-                _sellNobleBudget = recommendation.SellNoble;
-            }
             AutoTraderHelpers.PrintDebugMessage(" - mount plan: " + recommendation.Reason);
         }
 

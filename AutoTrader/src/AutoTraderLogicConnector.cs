@@ -53,39 +53,62 @@ namespace AutoTrader
             AutoTraderHelpers.PrintDebugMessage(" - TroopWage: " + PartyBase.MainParty.MobileParty.TotalWage.ToString());
             return PartyBase.MainParty.MobileParty.TotalWage;
         }
-        public float GetCurrentWeight()
+        /// <summary>
+        /// Decides once whether the fleet figures apply, and returns both together.
+        ///
+        /// Weight and capacity must come from the same source: an empty hold legitimately reports
+        /// zero weight, so deciding per value (the previous "use it if it is above zero") could
+        /// return a land weight while the capacity still came from the fleet.
+        /// </summary>
+        private static bool TryGetFleetFigures(out float weight, out float capacity)
         {
-            // Check if we should use fleet weight calculation
-            if (AutoTraderConfig.UseMaxFleetCapacityValue && WarsailsDetector.IsWarsailsDLCAvailable())
+            weight = 0f;
+            capacity = 0f;
+            if (!AutoTraderConfig.UseMaxFleetCapacityValue || !WarsailsDetector.IsWarsailsDLCAvailable())
             {
-                float fleetWeight = WarsailsHelper.GetFleetTotalWeightCarried(MobileParty.MainParty);
-                
-                if (fleetWeight > 0)
-                {
-                    AutoTraderHelpers.PrintDebugMessage(" - Using FleetTotalWeightCarried: " + fleetWeight.ToString());
-                    return fleetWeight;
-                }
+                return false;
             }
 
-            // Fall back to regular weight calculation
+            MobileParty party = MobileParty.MainParty;
+            if (party == null || party.Ships == null || party.Ships.Count == 0)
+            {
+                return false;
+            }
+
+            int fleetCapacity = WarsailsHelper.GetFleetCargoCapacity(party);
+            if (fleetCapacity <= 0)
+            {
+                return false;
+            }
+
+            weight = WarsailsHelper.GetFleetTotalWeightCarried(party);
+            capacity = fleetCapacity;
+            return true;
+        }
+
+        public float GetCurrentWeight()
+        {
+            float weight;
+            float capacity;
+            if (TryGetFleetFigures(out weight, out capacity))
+            {
+                AutoTraderHelpers.PrintDebugMessage(" - Using FleetTotalWeightCarried: " + weight.ToString());
+                return weight;
+            }
+
             AutoTraderHelpers.PrintDebugMessage(" - CurrentWeight: " + MobileParty.MainParty.TotalWeightCarried.ToString());
             return MobileParty.MainParty.TotalWeightCarried;
         }
         public float GetInventoryCapacity()
         {
-            // Check if we should use fleet capacity
-            if (AutoTraderConfig.UseMaxFleetCapacityValue && WarsailsDetector.IsWarsailsDLCAvailable())
+            float weight;
+            float capacity;
+            if (TryGetFleetFigures(out weight, out capacity))
             {
-                int fleetCapacity = WarsailsHelper.GetFleetCargoCapacity(MobileParty.MainParty);
-
-                if (fleetCapacity > 0)
-                {
-                    AutoTraderHelpers.PrintDebugMessage(" - Using FleetCargoCapacity: " + fleetCapacity.ToString());
-                    return fleetCapacity;
-                }
+                AutoTraderHelpers.PrintDebugMessage(" - Using FleetCargoCapacity: " + capacity.ToString());
+                return capacity;
             }
 
-            // Use regular inventory capacity
             AutoTraderHelpers.PrintDebugMessage(" - InventoryCapacity: " + PartyBase.MainParty.MobileParty.InventoryCapacity.ToString());
             return PartyBase.MainParty.MobileParty.InventoryCapacity;
         }
@@ -446,12 +469,12 @@ namespace AutoTrader
             return true;
         }
 
-        internal void BeginInventoryDisplayRefresh()
+        public void BeginInventoryDisplayRefresh()
         {
             _inventoryDisplayRefreshTicks = 15;
         }
 
-        internal void TickInventoryDisplayRefresh()
+        public void TickInventoryDisplayRefresh()
         {
             if (_inventoryDisplayRefreshTicks <= 0)
             {
