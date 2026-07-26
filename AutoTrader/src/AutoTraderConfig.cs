@@ -35,9 +35,9 @@ namespace AutoTrader
         public static bool SellSmithingValue { get; set; } = false;
         public static bool KeepSmeltingValue { get; set; } = false;
         // Buy cheap smeltable weapons as a hardwood source for smithing (coupled to need).
-        public static bool BuySmeltablesForHardwoodValue { get; set; } = false;
+        public static bool BuySmeltablesForHardwoodValue { get; set; } = true;
         public static int SmeltHardwoodTargetValue { get; set; } = 100;
-        public static bool ResupplyHardwoodValue { get; set; } = false;
+        public static bool ResupplyHardwoodValue { get; set; } = true;
         public static bool ResupplyValue { get; set; } = true;
         public static bool JunkCattleValue { get; set; } = false;
 
@@ -82,7 +82,8 @@ namespace AutoTrader
         public const int WarehouseCaravans = 3;
         // The cut a player-owned caravan takes for hauling warehouse goods away.
         public static int CaravanCommissionPercentValue { get; set; } = 15;
-        public static int WarehouseModeValue { get; set; } = WarehouseOff;
+        // Test-build default: the whole warehouse chain is on, see AutoTraderMcmSettings.
+        public static int WarehouseModeValue { get; set; } = WarehouseCaravans;
         // Share of the town's gold that may be spent on the warehouse per day.
         public static int ConsignmentSharePercentValue { get; set; } = 25;
         // Items below this unit price stay in the warehouse instead of flooding the market.
