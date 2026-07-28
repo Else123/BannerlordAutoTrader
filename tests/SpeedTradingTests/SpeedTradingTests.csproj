@@ -23,6 +23,7 @@
     <Compile Include="..\..\AutoTrader\src\SpeedTrading\MountRecommendation.cs" Link="SpeedTrading\MountRecommendation.cs" />
     <Compile Include="..\..\AutoTrader\src\SpeedTrading\PartySpeedAdvisor.cs" Link="SpeedTrading\PartySpeedAdvisor.cs" />
     <Compile Include="..\..\AutoTrader\src\Warehouse\ConsignmentPlanner.cs" Link="Warehouse\ConsignmentPlanner.cs" />
+    <Compile Include="..\..\AutoTrader\src\Smithing\HardwoodTarget.cs" Link="Smithing\HardwoodTarget.cs" />
   </ItemGroup>
 
 </Project>

@@ -36,6 +36,11 @@ namespace AutoTrader
         // warehouse is for.
         private List<string> _goldBlockedItems;
 
+        // Items the trader was willing to sell but the local price was too poor for. When the
+        // party is over its cargo quota these may go to the warehouse instead of being hauled on;
+        // they are goods we already decided to part with, so consigning them at home is safe.
+        private List<string> _priceBlockedItems;
+
         // Post-trade summary counters (units transacted this run).
         private int _unitsBought;
         private int _unitsSold;
@@ -68,6 +73,7 @@ namespace AutoTrader
             _soldItems = new List<string>();
             _boughtItems = new List<string>();
             _goldBlockedItems = new List<string>();
+            _priceBlockedItems = new List<string>();
             _unitsBought = 0;
             _unitsSold = 0;
             _mountsBought = 0;
@@ -147,7 +153,9 @@ namespace AutoTrader
                 + " livestockReserve=" + AutoTraderConfig.KeepLivestockReserveValue);
             AutoTraderHelpers.PrintDebugMessage(" - [config] hardwood buy=" + AutoTraderConfig.ResupplyHardwoodValue
                 + " smelt=" + AutoTraderConfig.BuySmeltablesForHardwoodValue
-                + " target=" + AutoTraderConfig.SmeltHardwoodTargetValue
+                + " targetMin=" + AutoTraderConfig.SmeltHardwoodTargetValue
+                + " perMaterial=" + AutoTraderConfig.HardwoodPerMaterialPercentValue + "%"
+                + " effective=" + AutoTraderSpecialRules.EffectiveHardwoodTarget(_logicConnector)
                 + " | warehouse=" + AutoTraderConfig.WarehouseModeValue
                 + " share=" + AutoTraderConfig.ConsignmentSharePercentValue + "%");
         }
@@ -365,8 +373,22 @@ namespace AutoTrader
             return result;
         }
 
-        // Stores what the local merchant could not afford in this town's warehouse, so the
+        private void NotePriceBlocked()
+        {
+            string name = _logicConnector.GetItemName();
+            if (!_priceBlockedItems.Contains(name))
+            {
+                _priceBlockedItems.Add(name);
+            }
+        }
+
+        // Moves goods the trader wanted to sell but could not into this town's warehouse, so the
         // surplus stops travelling with the party. Consignment drains it over the next days.
+        //
+        // Two reasons qualify: the merchant ran out of gold (always), and - while the party is over
+        // its cargo quota - a price too poor to sell at here. Both are goods already judged
+        // sellable, so nothing the keep rules protect (food below the reserve, equipment above the
+        // tier, mounts, pack animals) is ever stored.
         private void DepositUnsoldGoods()
         {
             _storedUnits = 0;
@@ -374,14 +396,35 @@ namespace AutoTrader
             {
                 return;
             }
-            if (_goldBlockedItems.Count == 0 || !_logicConnector.IsInOwnedTown())
+            if (!_logicConnector.IsInOwnedTown())
             {
+                AutoTraderHelpers.PrintDebugMessage(" - [warehouse] not a town this clan owns, nothing stored");
                 return;
             }
+
+            bool overQuota = _availableInventoryCapacity < 0f;
+            AutoTraderHelpers.PrintDebugMessage(" - [warehouse] owned town: goldBlocked=" + _goldBlockedItems.Count
+                + " priceBlocked=" + _priceBlockedItems.Count + " overCargoQuota=" + overQuota);
 
             foreach (string itemName in _goldBlockedItems)
             {
                 _storedUnits += _logicConnector.DepositItemToStash(itemName);
+            }
+
+            if (overQuota)
+            {
+                foreach (string itemName in _priceBlockedItems)
+                {
+                    if (!_goldBlockedItems.Contains(itemName))
+                    {
+                        _storedUnits += _logicConnector.DepositItemToStash(itemName);
+                    }
+                }
+            }
+
+            if (_storedUnits == 0)
+            {
+                AutoTraderHelpers.PrintDebugMessage(" - [warehouse] nothing qualified for storage this run");
             }
         }
 
@@ -458,7 +501,7 @@ namespace AutoTrader
             }
 
             int hardwood = _logicConnector.GetHardwoodCount();
-            int target = AutoTraderConfig.SmeltHardwoodTargetValue;
+            int target = AutoTraderSpecialRules.EffectiveHardwoodTarget(_logicConnector);
             int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
             AutoTraderHelpers.PrintDebugMessage(" - [smelt] '" + _logicConnector.GetItemName() + "' price=" + buyoutPrice
                 + " hardwood=" + hardwood + "/" + target + " yield=" + hardwoodYield);
@@ -695,7 +738,7 @@ namespace AutoTrader
                 // Keep only cheap smelt-fodder we are collecting for hardwood - not valuable
                 // weapons that merely happen to yield hardwood (those should still be sold).
                 if (AutoTraderConfig.BuySmeltablesForHardwoodValue
-                    && _logicConnector.GetHardwoodCount() < AutoTraderConfig.SmeltHardwoodTargetValue)
+                    && _logicConnector.GetHardwoodCount() < AutoTraderSpecialRules.EffectiveHardwoodTarget(_logicConnector))
                 {
                     int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
                     if (hardwoodYield > 0 && buyoutPrice <= hardwoodYield * _logicConnector.GetHardwoodUnitValue())
@@ -843,6 +886,7 @@ namespace AutoTrader
                     if (priceFactor <= 1.2f)
                     {
                         AutoTraderHelpers.PrintDebugMessage("- do not sell because price factor is too low: " + priceFactor.ToString());
+                        NotePriceBlocked();
                         return false;
                     }
 
@@ -850,9 +894,10 @@ namespace AutoTrader
                 else if (weighted_profit > buyoutPrice * 0.8f)
                 {
                     AutoTraderHelpers.PrintDebugMessage("- do not sell because weighted profit (" + weighted_profit.ToString() + ") is higher than " + (buyoutPrice * 0.8f).ToString());
+                    NotePriceBlocked();
                     return false;
                 }
-                    
+
             }
             else
             {
@@ -861,9 +906,10 @@ namespace AutoTrader
                 if (priceFactor < (float)AutoTraderConfig.SellThresholdValue / 100.0f)
                 {
                     AutoTraderHelpers.PrintDebugMessage("- do not sell because price factor is less than sell threshold: " + priceFactor.ToString());
+                    NotePriceBlocked();
                     return false;
                 }
-                    
+
             }
             
             return CheckBasicSellRequirements(amount, buyoutPrice);

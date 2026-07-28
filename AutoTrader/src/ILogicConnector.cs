@@ -57,6 +57,7 @@ namespace AutoTrader
         int DepositItemToStash(string itemName);
         int GetHardwoodCount();
         int GetHardwoodUnitValue();
+        int GetRefinableMaterialCount();
         int GetCurrentItemHardwoodSmeltYield();
         float GetRosterElementWeight();
         bool InitInventory();

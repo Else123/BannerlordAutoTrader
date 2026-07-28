@@ -383,6 +383,34 @@ namespace AutoTrader
             return PartyBase.MainParty.ItemRoster.GetItemNumber(DefaultItems.HardWood);
         }
 
+        /// <summary>
+        /// Ore and ingots the party carries - the materials whose refining and smelting burns
+        /// charcoal, and therefore what the hardwood target should scale with.
+        /// </summary>
+        public int GetRefinableMaterialCount()
+        {
+            ItemRoster roster = PartyBase.MainParty.MobileParty.ItemRoster;
+            int count = 0;
+            for (int i = 0; i < roster.Count; i++)
+            {
+                ItemRosterElement e = roster[i];
+                ItemObject item = e.EquipmentElement.Item;
+                if (item == null)
+                {
+                    continue;
+                }
+                if (item == DefaultItems.IronOre
+                    || item == DefaultItems.IronIngot1 || item == DefaultItems.IronIngot2
+                    || item == DefaultItems.IronIngot3 || item == DefaultItems.IronIngot4
+                    || item == DefaultItems.IronIngot5 || item == DefaultItems.IronIngot6)
+                {
+                    count += e.Amount;
+                }
+            }
+            AutoTraderHelpers.PrintDebugMessage(" - RefinableMaterials: " + count.ToString());
+            return count;
+        }
+
         public int GetHardwoodUnitValue()
         {
             return DefaultItems.HardWood.Value;

@@ -184,10 +184,16 @@ namespace AutoTrader
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public Dropdown<string> HardwoodSupply { get; set; } = Choice(HardwoodSupplies, 3);
 
-        [SettingPropertyInteger("Hardwood target", 0, 500, "0", Order = 8, RequireRestart = false,
-            HintText = "Keep buying hardwood (or smelt fodder) until the party holds this much.")]
+        [SettingPropertyInteger("Hardwood target (minimum)", 0, 2000, "0", Order = 8, RequireRestart = false,
+            HintText = "The floor for the hardwood stock. The actual target rises with the ore and ingots you carry.")]
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public int HardwoodTarget { get; set; } = 100;
+
+        [SettingPropertyInteger("Hardwood per 100 ore/ingots", 0, 200, "0", Order = 9, RequireRestart = false,
+            HintText = "Scales the target with your smithing stock, because refining and smelting burn charcoal. " +
+                "At 50, holding 20000 iron aims for 10000 hardwood. Set to 0 to use the fixed minimum only.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int HardwoodPerMaterial { get; set; } = 50;
 
         [SettingPropertyBool("Sell smithing materials", Order = 9, RequireRestart = false,
             HintText = "Off keeps ore, ingots, charcoal and hardwood for the forge.")]
@@ -327,6 +333,7 @@ namespace AutoTrader
             AutoTraderConfig.ResupplyHardwoodValue = hardwood == 1 || hardwood == 3;
             AutoTraderConfig.BuySmeltablesForHardwoodValue = hardwood == 2 || hardwood == 3;
             AutoTraderConfig.SmeltHardwoodTargetValue = s.HardwoodTarget;
+            AutoTraderConfig.HardwoodPerMaterialPercentValue = s.HardwoodPerMaterial;
 
             // Animals.
             AutoTraderConfig.SpeedAwareMountsValue = s.MountManagement.SelectedIndex == 1;
