@@ -39,7 +39,8 @@ namespace AutoTrader
             return Smithing.HardwoodTarget.Effective(
                 AutoTraderConfig.SmeltHardwoodTargetValue,
                 logicConnector.GetRefinableMaterialCount(),
-                AutoTraderConfig.HardwoodPerMaterialPercentValue);
+                AutoTraderConfig.HardwoodPerMaterialPercentValue,
+                AutoTraderConfig.HardwoodTargetMaxValue);
         }
 
         /// <summary>Buy hardwood directly while below the target ("Buy hardwood" / "Both" modes).</summary>

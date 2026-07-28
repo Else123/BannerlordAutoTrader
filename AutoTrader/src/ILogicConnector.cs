@@ -43,7 +43,7 @@ namespace AutoTrader
         int GetItemAmountInPlayerRoster();
         string GetItemName();
         float GetItemWeight();
-        bool IsWeaponDesignEmpty();
+        bool IsPlayerCraftedWeapon();
         bool IsPackAnimal();
         bool IsItemGrain();
         bool IsItemHardwood();

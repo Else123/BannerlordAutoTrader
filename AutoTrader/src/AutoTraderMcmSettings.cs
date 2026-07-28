@@ -195,6 +195,11 @@ namespace AutoTrader
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
         public int HardwoodPerMaterial { get; set; } = 50;
 
+        [SettingPropertyInteger("Hardwood target (maximum)", 0, 20000, "0", Order = 10, RequireRestart = false,
+            HintText = "Ceiling for the scaled target, so a huge stockpile does not ask for more wood than you can carry. 0 removes it.")]
+        [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
+        public int HardwoodTargetMax { get; set; } = 2000;
+
         [SettingPropertyBool("Sell smithing materials", Order = 9, RequireRestart = false,
             HintText = "Off keeps ore, ingots, charcoal and hardwood for the forge.")]
         [SettingPropertyGroup(SuppliesGroup, GroupOrder = 3)]
@@ -334,6 +339,7 @@ namespace AutoTrader
             AutoTraderConfig.BuySmeltablesForHardwoodValue = hardwood == 2 || hardwood == 3;
             AutoTraderConfig.SmeltHardwoodTargetValue = s.HardwoodTarget;
             AutoTraderConfig.HardwoodPerMaterialPercentValue = s.HardwoodPerMaterial;
+            AutoTraderConfig.HardwoodTargetMaxValue = s.HardwoodTargetMax;
 
             // Animals.
             AutoTraderConfig.SpeedAwareMountsValue = s.MountManagement.SelectedIndex == 1;

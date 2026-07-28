@@ -289,10 +289,16 @@ namespace AutoTrader
             return _currentItemRosterElement.EquipmentElement.Item.Weight;
         }
 
-        public bool IsWeaponDesignEmpty()
+        /// <summary>
+        /// Whether the player smithed this weapon. Note this is NOT the same as having a weapon
+        /// design: ItemObject.IsCraftedWeapon is true for most vanilla weapons, because they are
+        /// defined from crafting pieces, so testing that would protect nearly the whole armoury.
+        /// </summary>
+        public bool IsPlayerCraftedWeapon()
         {
-            var result = _currentItemRosterElement.EquipmentElement.Item.WeaponDesign == null;
-            AutoTraderHelpers.PrintDebugMessage(" - IsWeaponDesignEmpty: " + result.ToString());
+            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
+            bool result = item != null && item.IsCraftedByPlayer;
+            AutoTraderHelpers.PrintDebugMessage(" - IsPlayerCraftedWeapon: " + result.ToString());
             return result;
         }
         public bool IsPackAnimal()

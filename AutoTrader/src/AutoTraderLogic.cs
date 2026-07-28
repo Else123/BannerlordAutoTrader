@@ -752,9 +752,9 @@ namespace AutoTrader
             } else if (_logicConnector.IsWeapon())
             {
                 // Keep handmade weapons
-                if (AutoTraderConfig.KeepSmeltingValue && !_logicConnector.IsWeaponDesignEmpty())
+                if (AutoTraderConfig.KeepSmeltingValue && _logicConnector.IsPlayerCraftedWeapon())
                 {
-                    AutoTraderHelpers.PrintDebugMessage("- do not sell because its crafted");
+                    AutoTraderHelpers.PrintDebugMessage("- do not sell because the player crafted it");
                     return false;
                 }
 

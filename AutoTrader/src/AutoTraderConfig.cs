@@ -40,6 +40,9 @@ namespace AutoTrader
         // ingots carried, because those are what burn charcoal.
         public static int SmeltHardwoodTargetValue { get; set; } = 100;
         public static int HardwoodPerMaterialPercentValue { get; set; } = 50;
+        // Ceiling for the scaled target, so a huge stockpile cannot ask for more wood than the
+        // party can carry. 0 removes the ceiling.
+        public static int HardwoodTargetMaxValue { get; set; } = 2000;
         public static bool ResupplyHardwoodValue { get; set; } = true;
         public static bool ResupplyValue { get; set; } = true;
         public static bool JunkCattleValue { get; set; } = false;
@@ -230,6 +233,10 @@ namespace AutoTrader
                         {
                             AutoTraderConfig.HardwoodPerMaterialPercentValue = Int32.Parse(textReader.ReadString());
                         }
+                        else if (textReader.Name == "hardwoodTargetMaxValue")
+                        {
+                            AutoTraderConfig.HardwoodTargetMaxValue = Int32.Parse(textReader.ReadString());
+                        }
                         else if (textReader.Name == "resupplyHardwoodValue")
                         {
                             AutoTraderConfig.ResupplyHardwoodValue = Boolean.Parse(textReader.ReadString());
@@ -380,6 +387,7 @@ namespace AutoTrader
                 textWriter.WriteElementString("buySmeltablesForHardwoodValue", AutoTraderConfig.BuySmeltablesForHardwoodValue.ToString());
                 textWriter.WriteElementString("smeltHardwoodTargetValue", AutoTraderConfig.SmeltHardwoodTargetValue.ToString());
                 textWriter.WriteElementString("hardwoodPerMaterialPercentValue", AutoTraderConfig.HardwoodPerMaterialPercentValue.ToString());
+                textWriter.WriteElementString("hardwoodTargetMaxValue", AutoTraderConfig.HardwoodTargetMaxValue.ToString());
                 textWriter.WriteElementString("resupplyHardwoodValue", AutoTraderConfig.ResupplyHardwoodValue.ToString());
 
                 textWriter.WriteElementString("buyHorsesValue", AutoTraderConfig.BuyHorsesValue.ToString());
