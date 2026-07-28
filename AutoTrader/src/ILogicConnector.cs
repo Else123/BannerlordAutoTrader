@@ -44,6 +44,8 @@ namespace AutoTrader
         string GetItemName();
         float GetItemWeight();
         bool IsPlayerCraftedWeapon();
+        int GetItemTier();
+        int GetBestEquippedTier();
         bool IsPackAnimal();
         bool IsItemGrain();
         bool IsItemHardwood();

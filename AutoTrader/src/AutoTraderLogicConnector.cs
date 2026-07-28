@@ -294,6 +294,56 @@ namespace AutoTrader
         /// design: ItemObject.IsCraftedWeapon is true for most vanilla weapons, because they are
         /// defined from crafting pieces, so testing that would protect nearly the whole armoury.
         /// </summary>
+        /// <summary>Tier of the current item as a plain number (Tier1 == 1).</summary>
+        public int GetItemTier()
+        {
+            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
+            return item == null ? 1 : (int)item.Tier + 1;
+        }
+
+        /// <summary>
+        /// The best weapon or armour tier the player and their companions are actually wearing.
+        /// Used to decide what counts as loot: gear below this is surplus, gear at or above it
+        /// might still be an upgrade for somebody and is kept.
+        /// </summary>
+        public int GetBestEquippedTier()
+        {
+            int best = 1;
+            foreach (Hero hero in Clan.PlayerClan.Heroes)
+            {
+                if (hero == null || !hero.IsAlive || hero.PartyBelongedTo != MobileParty.MainParty)
+                {
+                    continue;
+                }
+
+                Equipment equipment = hero.BattleEquipment;
+                if (equipment == null)
+                {
+                    continue;
+                }
+
+                for (int slot = 0; slot < (int)EquipmentIndex.NumEquipmentSetSlots; slot++)
+                {
+                    ItemObject item = equipment[(EquipmentIndex)slot].Item;
+                    if (item == null)
+                    {
+                        continue;
+                    }
+                    if (!AutoTraderHelpers.IsWeapon(item) && !AutoTraderHelpers.IsArmor(item))
+                    {
+                        continue;
+                    }
+                    int tier = (int)item.Tier + 1;
+                    if (tier > best)
+                    {
+                        best = tier;
+                    }
+                }
+            }
+            AutoTraderHelpers.PrintDebugMessage(" - BestEquippedTier: " + best.ToString());
+            return best;
+        }
+
         public bool IsPlayerCraftedWeapon()
         {
             ItemObject item = _currentItemRosterElement.EquipmentElement.Item;

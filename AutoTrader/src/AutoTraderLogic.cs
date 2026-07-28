@@ -5,6 +5,7 @@ using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
 using AutoTrader.SpeedTrading;
+using AutoTrader.Trading;
 
 [assembly: InternalsVisibleTo("AutoTraderTests")]
 namespace AutoTrader
@@ -731,171 +732,116 @@ namespace AutoTrader
             }
         }
 
+        // Snapshots the item on offer for the engine-free sell rules.
+        private ItemView BuildItemView(int buyoutPrice, int amount)
+        {
+            bool isHorse = _logicConnector.IsHorse();
+            return new ItemView(
+                buyoutPrice,
+                amount,
+                _logicConnector.GetItemTier(),
+                _logicConnector.IsArmor(),
+                _logicConnector.IsWeapon(),
+                _logicConnector.IsPlayerCraftedWeapon(),
+                _logicConnector.GetCurrentItemHardwoodSmeltYield(),
+                _logicConnector.IsItemHardwood(),
+                isHorse,
+                isHorse && _logicConnector.IsPackAnimal(),
+                isHorse && _logicConnector.IsWarMount(),
+                isHorse && _logicConnector.IsNobleMount(),
+                _logicConnector.IsConsumable(),
+                _logicConnector.IsItemGrain(),
+                _logicConnector.IsLivestock());
+        }
+
+        private SellSettings BuildSellSettings()
+        {
+            return new SellSettings(
+                EffectiveSellUpToTier(),
+                AutoTraderConfig.KeepSmeltingValue,
+                AutoTraderConfig.BuySmeltablesForHardwoodValue,
+                _logicConnector.GetHardwoodCount(),
+                AutoTraderSpecialRules.EffectiveHardwoodTarget(_logicConnector),
+                _logicConnector.GetHardwoodUnitValue(),
+                AutoTraderConfig.SpeedAwareMountsValue,
+                AutoTraderConfig.ProtectPackAnimalsValue,
+                AutoTraderConfig.KeepMountsAboveValueValue,
+                _logicConnector.GetFoodDaysRemaining(),
+                AutoTraderConfig.KeepFoodDaysValue,
+                AutoTraderConfig.KeepGrainsMaxValue,
+                AutoTraderConfig.KeepConsumablesMaxValue,
+                AutoTraderConfig.JunkCattleValue);
+        }
+
+        /// <summary>
+        /// The equipment tier the trader may sell up to. In automatic mode this follows what the
+        /// party actually wears, so gear that could still be an upgrade is safe without the player
+        /// raising a number by hand as the campaign progresses: anything below the best tier the
+        /// heroes carry is loot, anything at or above it is a candidate and is kept.
+        /// </summary>
+        private int EffectiveSellUpToTier()
+        {
+            if (!AutoTraderConfig.MatchEquipmentToHeroesValue)
+            {
+                return AutoTraderConfig.WeaponsArmorTierValue;
+            }
+
+            int equipped = _logicConnector.GetBestEquippedTier();
+            int effective = Math.Max(1, equipped - 1);
+            AutoTraderHelpers.PrintDebugMessage(" - [gear] heroes wear tier " + equipped
+                + ", selling up to tier " + effective);
+            return effective;
+        }
+
+        private void ConsumeSellBudget(SellBudget budget)
+        {
+            switch (budget)
+            {
+                case SellBudget.RegularMount:
+                    _sellRegularBudget--;
+                    break;
+                case SellBudget.WarMount:
+                    _sellWarBudget--;
+                    break;
+                case SellBudget.NobleMount:
+                    _sellNobleBudget--;
+                    break;
+                case SellBudget.PackAnimal:
+                    _sellPackBudget--;
+                    break;
+                case SellBudget.Livestock:
+                    _sellLivestockBudget--;
+                    break;
+            }
+        }
+
         private bool CanSell(float averagePrice, int amount, out int buyoutPrice)
         {
             AutoTraderHelpers.PrintDebugMessage("### Can sell check ###");
             // Retrieve price
             buyoutPrice = _logicConnector.GetCostOfRosterElement();
 
-            // Sell all Armor and Weapons
-            if (_logicConnector.IsArmor())
-            {
-                if (_logicConnector.IsItemTierLowerThan((ItemObject.ItemTiers)AutoTraderConfig.WeaponsArmorTierValue))
-                {
-                    return CheckBasicSellRequirements(amount, buyoutPrice);
-                }
-                else
-                {
-                    AutoTraderHelpers.PrintDebugMessage("- do not sell because tier is too high");
-                    return false;
-                }
-            } else if (_logicConnector.IsWeapon())
-            {
-                // Keep handmade weapons
-                if (AutoTraderConfig.KeepSmeltingValue && _logicConnector.IsPlayerCraftedWeapon())
-                {
-                    AutoTraderHelpers.PrintDebugMessage("- do not sell because the player crafted it");
-                    return false;
-                }
+            // Everything that protects an item from being sold, or releases it, is decided in the
+            // engine-free Trading.SellGate so it can be unit tested. Only the price logic below
+            // stays here, because it needs the live market.
+            SellDecision decision = SellGate.Evaluate(BuildItemView(buyoutPrice, amount), BuildSellSettings(),
+                new SellBudgets(_sellRegularBudget, _sellWarBudget, _sellNobleBudget, _sellPackBudget, _sellLivestockBudget));
+            AutoTraderHelpers.PrintDebugMessage(" - [sell] " + decision.Verdict + ": " + decision.Reason);
 
-                // Keep only cheap smelt-fodder we are collecting for hardwood - not valuable
-                // weapons that merely happen to yield hardwood (those should still be sold).
-                if (AutoTraderConfig.BuySmeltablesForHardwoodValue
-                    && _logicConnector.GetHardwoodCount() < AutoTraderSpecialRules.EffectiveHardwoodTarget(_logicConnector))
-                {
-                    int hardwoodYield = _logicConnector.GetCurrentItemHardwoodSmeltYield();
-                    if (hardwoodYield > 0 && buyoutPrice <= hardwoodYield * _logicConnector.GetHardwoodUnitValue())
-                    {
-                        AutoTraderHelpers.PrintDebugMessage("- keep cheap weapon: collecting for hardwood smelting");
-                        return false;
-                    }
-                }
-
-                if (_logicConnector.IsItemTierLowerThan((ItemObject.ItemTiers)AutoTraderConfig.WeaponsArmorTierValue))
-                {
-                    return CheckBasicSellRequirements(amount, buyoutPrice);
-                }
-                else
-                {
-                    AutoTraderHelpers.PrintDebugMessage("- do not sell because tier is too high");
-                    return false;
-                }
+            if (decision.Verdict == SellVerdict.Keep)
+            {
+                return false;
             }
-                
-            // Special horse rule
-            if (_logicConnector.IsHorse())
+            if (decision.Verdict == SellVerdict.Sell)
             {
-                if (_logicConnector.IsPackAnimal())
+                if (!CheckBasicSellRequirements(amount, buyoutPrice))
                 {
-                    // Honor the explicit "protect pack animals" setting even in speed-aware mode.
-                    if (AutoTraderConfig.ProtectPackAnimalsValue)
-                    {
-                        AutoTraderHelpers.PrintDebugMessage("- keep pack animal (protected by setting)");
-                        return false;
-                    }
-
-                    // Sell pack animals only as herd surplus; otherwise keep them (carry capacity)
-                    // and never let the generic price logic dump them.
-                    if (_sellPackBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
-                    {
-                        _sellPackBudget--;
-                        AutoTraderHelpers.PrintDebugMessage(" - [mount] SELL pack animal as herd surplus");
-                        return true;
-                    }
-                    AutoTraderHelpers.PrintDebugMessage("- keep pack animal (carry capacity)");
                     return false;
                 }
-
-                // Speed-aware: protect ridable mounts, sell only true surplus per category.
-                if (AutoTraderConfig.SpeedAwareMountsValue && !_logicConnector.IsPackAnimal())
-                {
-                    AutoTraderHelpers.PrintDebugMessage(" - [mount] consider SELL '" + _logicConnector.GetItemName() + "' ["
-                        + DescribeMountCategory() + "] price=" + buyoutPrice
-                        + " sellBudget r/w/n=" + _sellRegularBudget + "/" + _sellWarBudget + "/" + _sellNobleBudget);
-
-                    // Value guard: unique/named mounts are not necessarily in the war/noble item
-                    // categories, so category alone would treat them as ordinary riding horses.
-                    // Never sell a mount worth more than the configured value.
-                    if (AutoTraderConfig.KeepMountsAboveValueValue > 0
-                        && buyoutPrice >= AutoTraderConfig.KeepMountsAboveValueValue)
-                    {
-                        AutoTraderHelpers.PrintDebugMessage("- keep valuable mount (price >= keep-above value)");
-                        return false;
-                    }
-
-                    bool isNoble = _logicConnector.IsNobleMount();
-                    bool isWar = !isNoble && _logicConnector.IsWarMount();
-                    int categoryBudget = isNoble ? _sellNobleBudget : (isWar ? _sellWarBudget : _sellRegularBudget);
-
-                    if (categoryBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
-                    {
-                        if (isNoble)
-                        {
-                            _sellNobleBudget--;
-                        }
-                        else if (isWar)
-                        {
-                            _sellWarBudget--;
-                        }
-                        else
-                        {
-                            _sellRegularBudget--;
-                        }
-                        return true;
-                    }
-                    AutoTraderHelpers.PrintDebugMessage("- keep mount (needed for party speed or troop upgrades)");
-                    return false;
-                }
-
-                // Riding mounts in manual mode fall through to the generic price logic, gated by
-                // the "Sell horses (manual mode)" toggle in the item filter.
+                ConsumeSellBudget(decision.Budget);
+                return true;
             }
 
-            // Food: the days-of-food reserve is the hard floor, so a big party cannot be sold
-            // down to a handful of items. Only the surplus above it may go.
-            if (_logicConnector.IsConsumable())
-            {
-                if (!AutoTraderSpecialRules.MaySellFood(_logicConnector))
-                {
-                    AutoTraderHelpers.PrintDebugMessage("- [food] keep: only "
-                        + _logicConnector.GetFoodDaysRemaining() + " days left, reserve is "
-                        + AutoTraderConfig.KeepFoodDaysValue);
-                    return false;
-                }
-
-                int maxAmountToKeep = _logicConnector.IsItemGrain() ?
-                    AutoTraderConfig.KeepGrainsMaxValue : AutoTraderConfig.KeepConsumablesMaxValue;
-                if (maxAmountToKeep < amount)
-                {
-                    AutoTraderHelpers.PrintDebugMessage("- selling because we have too much of this consumable");
-                    return CheckBasicSellRequirements(amount, buyoutPrice);
-                }
-            }
-
-            // Livestock
-            if (_logicConnector.IsLivestock())
-            {
-                // Sell if its treated as junk
-                if (AutoTraderConfig.JunkCattleValue)
-                    return CheckBasicSellRequirements(amount, buyoutPrice);
-
-                // Otherwise shed only the herd surplus: livestock slows the party down and, unlike
-                // pack animals, adds no cargo capacity. The consumables minimum above already
-                // protects the food reserve.
-                if (_sellLivestockBudget > 0 && CheckBasicSellRequirements(amount, buyoutPrice))
-                {
-                    _sellLivestockBudget--;
-                    AutoTraderHelpers.PrintDebugMessage(" - [mount] SELL livestock as herd surplus");
-                    return true;
-                }
-            }
-
-            // Special hardwood rule
-            if (AutoTraderSpecialRules.ShouldKeepHardwood(_logicConnector))
-            {
-                AutoTraderHelpers.PrintDebugMessage("- do not sell because we dont have enough hardwood");
-                return false;                
-            }
 
             if (AutoTraderConfig.SimpleTradingAI)
             {

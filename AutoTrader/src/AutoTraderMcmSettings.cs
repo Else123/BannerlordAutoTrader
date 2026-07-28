@@ -142,8 +142,14 @@ namespace AutoTrader
         [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
         public bool SellArmor { get; set; } = true;
 
-        [SettingPropertyInteger("Sell equipment up to tier", 1, 6, "0", Order = 6, RequireRestart = false,
-            HintText = "Weapons and armor above this tier are kept.")]
+        [SettingPropertyBool("Match equipment to what we wear", Order = 6, RequireRestart = false,
+            HintText = "Sell gear worse than the best your heroes carry, and keep anything that could still be an " +
+                "upgrade. Keeps up with the campaign on its own, so the tier below is not needed.")]
+        [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
+        public bool MatchEquipmentToHeroes { get; set; } = true;
+
+        [SettingPropertyInteger("Sell equipment up to tier", 1, 6, "0", Order = 7, RequireRestart = false,
+            HintText = "Only used when the setting above is off: weapons and armor above this tier are kept.")]
         [SettingPropertyGroup(GoodsGroup, GroupOrder = 2)]
         public int SellUpToTier { get; set; } = 2;
 
@@ -324,6 +330,7 @@ namespace AutoTrader
             AutoTraderConfig.BuyArmorValue = s.BuyArmor;
             AutoTraderConfig.SellArmorValue = s.SellArmor;
             AutoTraderConfig.WeaponsArmorTierValue = s.SellUpToTier;
+            AutoTraderConfig.MatchEquipmentToHeroesValue = s.MatchEquipmentToHeroes;
 
             // Supplies.
             AutoTraderConfig.BuyConsumablesValue = s.BuyConsumables;

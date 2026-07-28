@@ -31,6 +31,9 @@ namespace AutoTrader
         public static int KeepWagesValue { get; set; } = 3;
         public static int SearchRadiusValue { get; set; } = 300;
         public static int WeaponsArmorTierValue { get; set; } = 2;
+        // Derive the equipment tier limit from what the heroes wear instead of the fixed number,
+        // so it keeps up with the campaign on its own.
+        public static bool MatchEquipmentToHeroesValue { get; set; } = true;
 
         public static bool SellSmithingValue { get; set; } = false;
         public static bool KeepSmeltingValue { get; set; } = false;
@@ -200,6 +203,10 @@ namespace AutoTrader
                         else if (textReader.Name == "weaponsArmorTierValue")
                         {
                             AutoTraderConfig.WeaponsArmorTierValue = Int32.Parse(textReader.ReadString());
+                        }
+                        else if (textReader.Name == "matchEquipmentToHeroesValue")
+                        {
+                            AutoTraderConfig.MatchEquipmentToHeroesValue = Boolean.Parse(textReader.ReadString());
                         }
                         else if (textReader.Name == "keepWagesValue")
                         {
@@ -379,6 +386,7 @@ namespace AutoTrader
                 textWriter.WriteElementString("keepWagesValue", AutoTraderConfig.KeepWagesValue.ToString());
                 textWriter.WriteElementString("searchRadiusValue", AutoTraderConfig.SearchRadiusValue.ToString());
                 textWriter.WriteElementString("weaponsArmorTierValue", AutoTraderConfig.WeaponsArmorTierValue.ToString());
+                textWriter.WriteElementString("matchEquipmentToHeroesValue", AutoTraderConfig.MatchEquipmentToHeroesValue.ToString());
 
                 textWriter.WriteElementString("junkCattleValue", AutoTraderConfig.JunkCattleValue.ToString());
                 textWriter.WriteElementString("resupplyValue", AutoTraderConfig.ResupplyValue.ToString());
