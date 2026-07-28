@@ -149,8 +149,19 @@ namespace AutoTrader.Warehouse
             if (loadedUnits > 0)
             {
                 AutoTraderHelpers.PrintMessage(
-                    $"Warehouse ({settlement.Name}): {party.Name} loaded {loadedUnits} items for {paid} gold.");
+                    $"Warehouse ({settlement.Name}): {party.Name} loaded {loadedUnits} items for {paid} gold, "
+                    + $"{CountStash(settlement)} left.");
             }
+        }
+
+        private static int CountStash(Settlement settlement)
+        {
+            int count = 0;
+            for (int i = 0; i < settlement.Stash.Count; i++)
+            {
+                count += settlement.Stash[i].Amount;
+            }
+            return count;
         }
 
         private void ConsignSlice(Settlement settlement)
@@ -201,7 +212,8 @@ namespace AutoTrader.Warehouse
 
             if (soldUnits > 0)
             {
-                AutoTraderHelpers.PrintMessage($"Warehouse ({settlement.Name}): consigned {soldUnits} items for {earned} gold.");
+                AutoTraderHelpers.PrintMessage($"Warehouse ({settlement.Name}): consigned {soldUnits} items for {earned} gold, "
+                    + $"{CountStash(settlement)} left.");
             }
         }
     }

@@ -406,9 +406,10 @@ namespace AutoTrader
             AutoTraderHelpers.PrintDebugMessage(" - [warehouse] owned town: goldBlocked=" + _goldBlockedItems.Count
                 + " priceBlocked=" + _priceBlockedItems.Count + " overCargoQuota=" + overQuota);
 
+            List<string> stored = new List<string>();
             foreach (string itemName in _goldBlockedItems)
             {
-                _storedUnits += _logicConnector.DepositItemToStash(itemName);
+                StoreItem(itemName, stored);
             }
 
             if (overQuota)
@@ -417,7 +418,7 @@ namespace AutoTrader
                 {
                     if (!_goldBlockedItems.Contains(itemName))
                     {
-                        _storedUnits += _logicConnector.DepositItemToStash(itemName);
+                        StoreItem(itemName, stored);
                     }
                 }
             }
@@ -425,7 +426,29 @@ namespace AutoTrader
             if (_storedUnits == 0)
             {
                 AutoTraderHelpers.PrintDebugMessage(" - [warehouse] nothing qualified for storage this run");
+                return;
             }
+
+            // Say what went in and where to look at it - the vanilla stash screen sits behind
+            // "Open stash" in the keep of a town your clan owns, which is easy to miss.
+            string what = string.Join(", ", stored.GetRange(0, Math.Min(4, stored.Count)).ToArray());
+            if (stored.Count > 4)
+            {
+                what += $" and {stored.Count - 4} more";
+            }
+            AutoTraderHelpers.PrintMessage($"Warehouse: stored {what}. It now holds "
+                + $"{_logicConnector.GetStashItemCount()} items - see them under Keep, Open stash.");
+        }
+
+        private void StoreItem(string itemName, List<string> stored)
+        {
+            int amount = _logicConnector.DepositItemToStash(itemName);
+            if (amount <= 0)
+            {
+                return;
+            }
+            _storedUnits += amount;
+            stored.Add($"{amount}x {itemName}");
         }
 
         // Shows a concise on-screen summary of what the trade run did.

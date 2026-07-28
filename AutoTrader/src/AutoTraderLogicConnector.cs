@@ -340,6 +340,23 @@ namespace AutoTrader
             return settlement != null && settlement.IsTown && settlement.OwnerClan == Clan.PlayerClan;
         }
 
+        /// <summary>Items currently held in this settlement's warehouse (the vanilla stash).</summary>
+        public int GetStashItemCount()
+        {
+            Settlement settlement = Settlement.CurrentSettlement;
+            if (settlement == null || settlement.Stash == null)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            for (int i = 0; i < settlement.Stash.Count; i++)
+            {
+                count += settlement.Stash[i].Amount;
+            }
+            return count;
+        }
+
         /// <summary>
         /// Moves the whole remaining stack of the named item from the party into this town's
         /// warehouse (the vanilla stash) and returns how many units were stored.

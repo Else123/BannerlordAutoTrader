@@ -55,6 +55,7 @@ namespace AutoTrader
         int GetFoodDaysRemaining();
         bool IsInOwnedTown();
         int DepositItemToStash(string itemName);
+        int GetStashItemCount();
         int GetHardwoodCount();
         int GetHardwoodUnitValue();
         int GetRefinableMaterialCount();
