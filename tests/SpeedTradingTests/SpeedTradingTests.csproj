@@ -26,6 +26,7 @@
     <Compile Include="..\..\AutoTrader\src\Smithing\HardwoodTarget.cs" Link="Smithing\HardwoodTarget.cs" />
     <Compile Include="..\..\AutoTrader\src\Trading\SellGate.cs" Link="Trading\SellGate.cs" />
     <Compile Include="..\..\AutoTrader\src\Trading\BuyGate.cs" Link="Trading\BuyGate.cs" />
+    <Compile Include="..\..\AutoTrader\src\Trading\ItemFilter.cs" Link="Trading\ItemFilter.cs" />
   </ItemGroup>
 
 </Project>

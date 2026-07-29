@@ -1,4 +1,5 @@
-﻿using AutoTrader.Warsails;
+﻿using AutoTrader.Trading;
+using AutoTrader.Warsails;
 using Helpers;
 using System;
 using System.Collections.Generic;
@@ -632,66 +633,44 @@ namespace AutoTrader
             return result;
         }
 
-        public bool IsItemFiltered(List<string> doneItems=null)
+        public bool IsItemFiltered(List<string> doneItems = null)
         {
-            var itemRosterElement = _currentItemRosterElement;
-            ItemObject itemObject = itemRosterElement.EquipmentElement.Item;
+            ItemObject itemObject = _currentItemRosterElement.EquipmentElement.Item;
+            if (itemObject == null)
+            {
+                return true;
+            }
 
-            // Filter by amount
-            if (_currentItemRosterElement.Amount <=0)
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - filtered because out of stock");
-                return true;
-            }
-            // Filter by lock
-            if (IsItemLocked())
-                return true;
+            FilterItem item = new FilterItem(
+                _currentItemRosterElement.Amount,
+                IsItemLocked(),
+                doneItems != null && doneItems.Exists(x => x == itemObject.Name.ToString()),
+                AutoTraderHelpers.IsSmithingMaterial(itemObject),
+                AutoTraderHelpers.IsHorse(itemObject),
+                AutoTraderHelpers.IsArmor(itemObject),
+                AutoTraderHelpers.IsWeapon(itemObject),
+                AutoTraderHelpers.IsLivestock(itemObject),
+                AutoTraderHelpers.IsTradeGood(itemObject),
+                AutoTraderHelpers.IsConsumable(itemObject));
 
-            // Check if already bought / sold
-            if (doneItems != null && doneItems.Exists(x => x == itemRosterElement.EquipmentElement.Item.Name.ToString()))
-                return true;
+            FilterSettings settings = new FilterSettings(
+                AutoTraderConfig.SellSmithingValue,
+                AutoTraderConfig.SpeedAwareMountsValue,
+                _isBuying ? AutoTraderConfig.BuyHorsesValue : AutoTraderConfig.SellHorsesValue,
+                _isBuying ? AutoTraderConfig.BuyArmorValue : AutoTraderConfig.SellArmorValue,
+                _isBuying ? AutoTraderConfig.BuyWeaponsValue : AutoTraderConfig.SellWeaponsValue,
+                AutoTraderConfig.BuySmeltablesForHardwoodValue,
+                _isBuying ? AutoTraderConfig.BuyLivestockValue : AutoTraderConfig.SellLivestockValue,
+                _isBuying ? AutoTraderConfig.BuyGoodsValue : AutoTraderConfig.SellGoodsValue,
+                _isBuying ? AutoTraderConfig.BuyConsumablesValue : AutoTraderConfig.SellConsumablesValue);
 
-            // Filter by type
-            if (!_isBuying && AutoTraderHelpers.IsSmithingMaterial(itemObject))
+            string reason;
+            bool filtered = ItemFilter.IsFiltered(item, settings, _isBuying, out reason);
+            if (filtered)
             {
-                AutoTraderHelpers.PrintDebugMessage(" - is smithing material");
-                return AutoTraderConfig.SellSmithingValue ? false : true;
+                AutoTraderHelpers.PrintDebugMessage(" - filtered: " + reason);
             }
-            if (AutoTraderHelpers.IsHorse(itemObject))
-            {
-                // Speed-aware mount trading decides per-mount in CanBuy/CanSell, so let every
-                // horse through when it is enabled; otherwise use the plain buy/sell toggles.
-                if (!AutoTraderConfig.SpeedAwareMountsValue
-                    && (_isBuying ? !AutoTraderConfig.BuyHorsesValue : !AutoTraderConfig.SellHorsesValue))
-                {
-                    return true;
-                }
-            }
-            if (AutoTraderHelpers.IsArmor(itemObject) && !(_isBuying ? AutoTraderConfig.BuyArmorValue : AutoTraderConfig.SellArmorValue))
-                return true;
-            if (AutoTraderHelpers.IsWeapon(itemObject))
-            {
-                // Allow weapons through on buy when collecting smeltables, so DecideSmeltablePurchase
-                // can evaluate them; CanBuy still declines non-smeltable weapons unless BuyWeapons is on.
-                bool allowWeapon = _isBuying
-                    ? (AutoTraderConfig.BuyWeaponsValue || AutoTraderConfig.BuySmeltablesForHardwoodValue)
-                    : AutoTraderConfig.SellWeaponsValue;
-                if (!allowWeapon)
-                {
-                    return true;
-                }
-            }
-            if (AutoTraderHelpers.IsLivestock(itemObject) && !(_isBuying ? AutoTraderConfig.BuyLivestockValue : AutoTraderConfig.SellLivestockValue))
-                return true;
-            if (AutoTraderHelpers.IsTradeGood(itemObject) && !(_isBuying ? AutoTraderConfig.BuyGoodsValue : AutoTraderConfig.SellGoodsValue))
-            {
-                if (!AutoTraderHelpers.IsConsumable(itemObject))
-                    return true;
-            }
-            if (AutoTraderHelpers.IsConsumable(itemObject) && !(_isBuying ? AutoTraderConfig.BuyConsumablesValue : AutoTraderConfig.SellConsumablesValue))
-                return true;
-
-            return false;
+            return filtered;
         }
 
         public void TransferItem()
