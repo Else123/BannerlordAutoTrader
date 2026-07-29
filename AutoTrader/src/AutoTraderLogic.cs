@@ -889,100 +889,69 @@ namespace AutoTrader
             return true;
         }
 
+        private delegate bool RangeCheck(int id, out float distance);
+
+        /// <summary>
+        /// Adds the buy and sell price of one settlement kind to the running average. Towns and
+        /// villages differ only in which connector calls to use, so they share this.
+        /// </summary>
+        private void ScanSettlements(string kind, int count_, RangeCheck inRange, Func<int, bool> isCurrent,
+            Func<int, bool, float> priceOf, ref float averagePrice, ref float count)
+        {
+            bool weighted = AutoTraderConfig.UseWeightedValue;
+            bool unlimitedRadius = AutoTraderConfig.SearchRadiusValue > 999;
+
+            for (int id = 0; id < count_; id++)
+            {
+                float distance;
+                if (!weighted && !unlimitedRadius && !inRange(id, out distance))
+                {
+                    continue;
+                }
+                inRange(id, out distance);
+
+                // A weighted scan compares against everywhere else, so the town we are standing in
+                // would only average its own price back into itself.
+                if (weighted && isCurrent(id))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    float divisor = (weighted && distance > 0f) ? distance : 1f;
+                    averagePrice += priceOf(id, true) / divisor;
+                    averagePrice += priceOf(id, false) / divisor;
+                    count += 2.0f / divisor;
+                }
+                catch (Exception e)
+                {
+                    AutoTraderHelpers.PrintDebugMessage("ERROR: Could not retrieve average price for "
+                        + kind + ": " + e.ToString());
+                }
+            }
+        }
+
         private float GetAveragePrice()
         {
             AutoTraderHelpers.PrintDebugMessage("### Getting average price ###");
             float averagePrice = 0;
-            float actualDistance = 0;
             float count = 0.0f;
 
-            for (int townId = 0; townId < _logicConnector.GetTownListSize(); townId++)
-            {
-                bool isInRange = _logicConnector.IsTownInRange(townId, out actualDistance);
-                if (AutoTraderConfig.UseWeightedValue // Consider weighted value
-                    || AutoTraderConfig.SearchRadiusValue > 999 // Consider the maximum setting
-                    || isInRange)
-                {
-                    if (AutoTraderConfig.UseWeightedValue)
-                    {
-                        // If its the current town, skip
-                        if (_logicConnector.IsCurrentTown(townId))
-                        {
-                            AutoTraderHelpers.PrintDebugMessage("- continue because current town");
-                            continue;
-                        }
+            ScanSettlements("town", _logicConnector.GetTownListSize(),
+                (int id, out float distance) => _logicConnector.IsTownInRange(id, out distance),
+                _logicConnector.IsCurrentTown,
+                _logicConnector.GetTownItemPrice,
+                ref averagePrice, ref count);
 
-                        // Weight by distance
-                        try
-                        {
-                            averagePrice += _logicConnector.GetTownItemPrice(townId, true) / actualDistance;
-                            averagePrice += _logicConnector.GetTownItemPrice(townId, false) / actualDistance;
-                            count += 2.0f / actualDistance;
-                        }
-                        catch (Exception e)
-                        {
-                            AutoTraderHelpers.PrintDebugMessage("ERROR: Could not retrieve average price for town: " + e.ToString());
-                        }
-                    }
-                    else
-                    {
-                        try
-                        {
-                            averagePrice += _logicConnector.GetTownItemPrice(townId, true);
-                            averagePrice += _logicConnector.GetTownItemPrice(townId, false);
-                            count += 2.0f;
-                        }
-                        catch (Exception e)
-                        {
-                            AutoTraderHelpers.PrintDebugMessage("ERROR: Could not retrieve average price for town: " + e.ToString());
-                        }
-
-                    }
-                }
-            }
-
-            // ToDo: Why the restriction?
+            // Villages only stock trade goods, so there is nothing to compare for anything else.
             if (_logicConnector.IsItemTradeGood())
             {
-                for (int villageId = 0; villageId < _logicConnector.GetVillageListSize(); villageId++)
-                {
-                    bool isInRange = _logicConnector.IsVillageInRange(villageId, out actualDistance);
-                    if (AutoTraderConfig.UseWeightedValue // Consider weighted value
-                        || AutoTraderConfig.SearchRadiusValue > 999 // Consider the maximum setting
-                        || isInRange)
-                    {
-                        if (AutoTraderConfig.UseWeightedValue)
-                        {
-                            // If its the current town, skip
-                            if (_logicConnector.IsCurrentVillage(villageId))
-                                continue;
-                            // Weight by distance
-                            try
-                            {
-                                averagePrice += _logicConnector.GetVillageItemPrice(villageId, true) / actualDistance;
-                                averagePrice += _logicConnector.GetVillageItemPrice(villageId, false) / actualDistance;
-                                count += 2.0f / actualDistance;
-                            }
-                            catch (Exception e)
-                            {
-                                AutoTraderHelpers.PrintDebugMessage("ERROR: Could not retrieve average price for village: " + e.ToString());
-                            }
-                        }
-                        else
-                        {
-                            try
-                            {
-                                averagePrice += _logicConnector.GetVillageItemPrice(villageId, true);
-                                averagePrice += _logicConnector.GetVillageItemPrice(villageId, false);
-                                count += 2.0f;
-                            }
-                            catch (Exception e)
-                            {
-                                AutoTraderHelpers.PrintDebugMessage("ERROR: Could not retrieve average price for village: " + e.ToString());
-                            }
-                        }
-                    }
-                }
+                ScanSettlements("village", _logicConnector.GetVillageListSize(),
+                    (int id, out float distance) => _logicConnector.IsVillageInRange(id, out distance),
+                    _logicConnector.IsCurrentVillage,
+                    _logicConnector.GetVillageItemPrice,
+                    ref averagePrice, ref count);
             }
 
             if (count == 0.0f)

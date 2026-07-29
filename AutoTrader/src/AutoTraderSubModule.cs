@@ -13,13 +13,16 @@ namespace AutoTrader
 		protected override void OnSubModuleLoad()
 		{
 			base.OnSubModuleLoad();
-			AutoTraderConfig.Initialize();
 			AutoTraderHelpers.Initialize();
 			_autoTraderLogic = new AutoTraderLogic(new AutoTraderLogicConnector());
 		}
 
 		public override void OnGameInitializationFinished(Game game)
 		{
+			// Pull the settings in once the game is up, so startup messages and the first trade
+			// run already reflect what the player configured rather than the bare defaults.
+			AutoTraderMcmSettings.Apply();
+
 			AutoTraderHelpers.PrintMessage("Thanks for using AutoTrader! Configure it in Options -> Mod Options (MCM).");
 
 			string fullVersion = ApplicationVersion.FromParametersFile(null).ToString();
