@@ -567,59 +567,6 @@ namespace AutoTrader
             return "regular";
         }
 
-        // Decides whether to buy the current horse item. Pack animals keep the original
-        // resupply rule; only regular riding horses are bought, up to the speed budget.
-        private bool DecideHorsePurchase(int amount, int buyoutPrice)
-        {
-            AutoTraderHelpers.PrintDebugMessage(" - [mount] consider BUY '" + _logicConnector.GetItemName() + "' ["
-                + DescribeMountCategory() + "] price=" + buyoutPrice + " buyRegularBudget=" + _buyRegularBudget);
-            if (_logicConnector.IsPackAnimal())
-            {
-                // Need-based: only while the cargo does not fit and the herd still has headroom.
-                // (The legacy rule here was unbounded - it compared the party size against the
-                // LIVESTOCK count, so it always said yes and bought hundreds of mules.)
-                if (AutoTraderConfig.BuyHorsesValue && _buyPackBudget > 0
-                    && CheckBasicBuyRequirements(amount, buyoutPrice))
-                {
-                    _buyPackBudget--;
-                    return true;
-                }
-                AutoTraderHelpers.PrintDebugMessage(" - do not buy pack animal (cargo fits, or herd limit reached)");
-                return false;
-            }
-
-            // Riding mounts are only bought to reach the speed target, so nothing is bought here
-            // while mount management is off - pack animals above keep their own setting.
-            if (!AutoTraderConfig.SpeedAwareMountsValue)
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - do not buy riding mount: mount management is off");
-                return false;
-            }
-
-            // Only regular horses count for the speed target. War/noble mounts are upgrade
-            // material and are not bought for speed here.
-            bool isRegularMount = !_logicConnector.IsWarMount() && !_logicConnector.IsNobleMount();
-            if (isRegularMount && _buyRegularBudget > 0)
-            {
-                // In fleet mode mounts occupy ship cargo -> respect capacity like other goods.
-                if (AutoTraderConfig.UseMaxFleetCapacityValue
-                    && _logicConnector.GetItemWeight() > _availableInventoryCapacity)
-                {
-                    AutoTraderHelpers.PrintDebugMessage(" - do not buy mount: fleet capacity reached");
-                    return false;
-                }
-                if (CheckBasicBuyRequirements(amount, buyoutPrice))
-                {
-                    _buyRegularBudget--;
-                    return true;
-                }
-                return false;
-            }
-
-            AutoTraderHelpers.PrintDebugMessage(" - do not buy mount (enough for speed, or war/noble kept for upgrades)");
-            return false;
-        }
-
         private bool CanBuy(float averagePrice, int amount, int ownAmount, out int buyoutPrice)
         {
             AutoTraderHelpers.PrintDebugMessage("### Can buy check ###");
@@ -628,51 +575,24 @@ namespace AutoTrader
             // Retrieve price
             buyoutPrice = _logicConnector.GetCostOfRosterElement();
 
-            // Special Rules
-            // Horses
-            if (_logicConnector.IsHorse())
-            {
-                return DecideHorsePurchase(amount, buyoutPrice);
-            }
+            // Everything that decides what is worth buying lives in the engine-free
+            // Trading.BuyGate, so it can be unit tested. Only the price logic below stays here.
+            BuyDecision decision = BuyGate.Evaluate(BuildItemView(buyoutPrice, amount), BuildBuySettings(),
+                new BuyBudgets(_buyRegularBudget, _buyPackBudget), ownAmount);
+            AutoTraderHelpers.PrintDebugMessage(" - [buy] " + decision.Verdict + ": " + decision.Reason);
 
-            // Cheap smeltable weapons as a hardwood source for smithing (only when needed).
-            if (DecideSmeltablePurchase(amount, buyoutPrice))
+            if (decision.Verdict == BuyVerdict.Skip)
             {
-                return true;
-            }
-            // A weapon only reaches here to be considered as a smeltable; do not buy it via the
-            // generic price logic unless normal weapon buying is enabled.
-            if (_logicConnector.IsWeapon() && !AutoTraderConfig.BuyWeaponsValue)
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - [smelt] weapon not a smeltable buy and BuyWeapons off -> skip");
                 return false;
             }
-
-            // Hardwood
-            if (AutoTraderSpecialRules.ShouldBuyHardwood(_logicConnector))
+            if (decision.Verdict == BuyVerdict.Buy)
             {
-                AutoTraderHelpers.PrintDebugMessage("- buying hardwood to resupply");
-                return CheckBasicBuyRequirements(amount, buyoutPrice); ;
-            }
-
-            // Consumables
-            if (_logicConnector.IsConsumable())
-            {
-                int maxAmount = _logicConnector.IsItemGrain() ? AutoTraderConfig.KeepGrainsMaxValue : AutoTraderConfig.KeepConsumablesMaxValue;
-
-                if (ownAmount >= maxAmount)
+                if (!CheckBasicBuyRequirements(amount, buyoutPrice))
                 {
-                    AutoTraderHelpers.PrintDebugMessage(" --> not buying because we have enough of this item");
                     return false;
                 }
-                if (AutoTraderConfig.ResupplyValue && AutoTraderSpecialRules.NeedsMoreFood(_logicConnector))
-                {
-                    AutoTraderHelpers.PrintDebugMessage(" - [food] restocking: "
-                        + _logicConnector.GetFoodDaysRemaining() + " days left, reserve is "
-                        + AutoTraderConfig.KeepFoodDaysValue);
-                    return CheckBasicBuyRequirements(amount, buyoutPrice);
-                }
-
+                ConsumeBuyBudget(decision.Budget);
+                return true;
             }
 
             // Price niveau
@@ -752,6 +672,39 @@ namespace AutoTrader
                 _logicConnector.IsConsumable(),
                 _logicConnector.IsItemGrain(),
                 _logicConnector.IsLivestock());
+        }
+
+        private BuySettings BuildBuySettings()
+        {
+            return new BuySettings(
+                AutoTraderConfig.BuyHorsesValue,
+                AutoTraderConfig.SpeedAwareMountsValue,
+                AutoTraderConfig.UseMaxFleetCapacityValue,
+                _availableInventoryCapacity,
+                _logicConnector.GetItemWeight(),
+                AutoTraderConfig.BuyWeaponsValue,
+                AutoTraderConfig.BuySmeltablesForHardwoodValue,
+                AutoTraderConfig.ResupplyHardwoodValue,
+                _logicConnector.GetHardwoodCount(),
+                AutoTraderSpecialRules.EffectiveHardwoodTarget(_logicConnector),
+                _logicConnector.GetHardwoodUnitValue(),
+                AutoTraderConfig.ResupplyValue,
+                _logicConnector.GetFoodDaysRemaining(),
+                AutoTraderConfig.KeepFoodDaysValue,
+                AutoTraderConfig.KeepGrainsMaxValue,
+                AutoTraderConfig.KeepConsumablesMaxValue);
+        }
+
+        private void ConsumeBuyBudget(BuyBudget budget)
+        {
+            if (budget == BuyBudget.RegularMount)
+            {
+                _buyRegularBudget--;
+            }
+            else if (budget == BuyBudget.PackAnimal)
+            {
+                _buyPackBudget--;
+            }
         }
 
         private SellSettings BuildSellSettings()

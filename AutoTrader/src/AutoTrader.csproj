@@ -186,6 +186,7 @@
     <Compile Include="ILogicConnector.cs" />
     <Compile Include="Smithing\HardwoodTarget.cs" />
     <Compile Include="Trading\SellGate.cs" />
+    <Compile Include="Trading\BuyGate.cs" />
     <Compile Include="Warehouse\ConsignmentPlanner.cs" />
     <Compile Include="Warehouse\WarehouseBehavior.cs" />
     <Compile Include="SpeedTrading\PartySnapshot.cs" />
