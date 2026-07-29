@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -180,6 +180,10 @@
     <Compile Include="AutoTraderHelpers.cs" />
     <Compile Include="AutoTraderLogic.cs" />
     <Compile Include="AutoTraderLogicConnector.cs" />
+    <Compile Include="AutoTraderLogicConnector.Items.cs" />
+    <Compile Include="AutoTraderLogicConnector.Party.cs" />
+    <Compile Include="AutoTraderLogicConnector.Market.cs" />
+    <Compile Include="AutoTraderLogicConnector.Warehouse.cs" />
     <Compile Include="AutoTraderSpecialRules.cs" />
     <Compile Include="AutoTraderSubModule.cs" />
     <Compile Include="AutoTraderMcmSettings.cs" />

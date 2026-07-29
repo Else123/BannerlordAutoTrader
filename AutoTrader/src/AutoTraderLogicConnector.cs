@@ -16,7 +16,15 @@ using TaleWorlds.Localization;
 
 namespace AutoTrader
 {
-    class AutoTraderLogicConnector: ILogicConnector
+    /// <summary>
+    /// The single implementation of <see cref="ILogicConnector"/>: every call into TaleWorlds
+    /// lives here, so the decision logic stays engine-free and testable.
+    ///
+    /// Split across partial files by role - Items, Party, Market, Warehouse - because one flat
+    /// class of nearly eighty methods hid which of them were plain queries and which carried
+    /// rules. This file keeps the shared state and the inventory session itself.
+    /// </summary>
+    partial class AutoTraderLogicConnector : ILogicConnector
     {
 
         public bool _isCaravan = false;
@@ -42,490 +50,37 @@ namespace AutoTrader
             AutoTraderHelpers.PrintDebugMessage(" - Current Item: " + _currentItemRosterElement.EquipmentElement.Item.Name.ToString());
         }
 
-        public int GetInitialGold()
-        {
-            // TODO: Use "MobileParty" instead since 1.3?
-            AutoTraderHelpers.PrintDebugMessage(" - InitialGold: " + PartyBase.MainParty.Owner.Gold.ToString());
-            return PartyBase.MainParty.Owner.Gold;
-        }
-        public int GetTroopWage()
-        {
-            // ToDo: Whole daily wage
-            AutoTraderHelpers.PrintDebugMessage(" - TroopWage: " + PartyBase.MainParty.MobileParty.TotalWage.ToString());
-            return PartyBase.MainParty.MobileParty.TotalWage;
-        }
-        /// <summary>
-        /// Decides once whether the fleet figures apply, and returns both together.
-        ///
-        /// Weight and capacity must come from the same source: an empty hold legitimately reports
-        /// zero weight, so deciding per value (the previous "use it if it is above zero") could
-        /// return a land weight while the capacity still came from the fleet.
-        /// </summary>
-        private static bool TryGetFleetFigures(out float weight, out float capacity)
-        {
-            weight = 0f;
-            capacity = 0f;
-            if (!AutoTraderConfig.UseMaxFleetCapacityValue || !WarsailsDetector.IsWarsailsDLCAvailable())
-            {
-                return false;
-            }
 
-            MobileParty party = MobileParty.MainParty;
-            if (party == null || party.Ships == null || party.Ships.Count == 0)
-            {
-                return false;
-            }
 
-            int fleetCapacity = WarsailsHelper.GetFleetCargoCapacity(party);
-            if (fleetCapacity <= 0)
-            {
-                return false;
-            }
-
-            weight = WarsailsHelper.GetFleetTotalWeightCarried(party);
-            capacity = fleetCapacity;
-            return true;
-        }
-
-        public float GetCurrentWeight()
-        {
-            float weight;
-            float capacity;
-            if (TryGetFleetFigures(out weight, out capacity))
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - Using FleetTotalWeightCarried: " + weight.ToString());
-                return weight;
-            }
-
-            AutoTraderHelpers.PrintDebugMessage(" - CurrentWeight: " + MobileParty.MainParty.TotalWeightCarried.ToString());
-            return MobileParty.MainParty.TotalWeightCarried;
-        }
-        public float GetInventoryCapacity()
-        {
-            float weight;
-            float capacity;
-            if (TryGetFleetFigures(out weight, out capacity))
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - Using FleetCargoCapacity: " + capacity.ToString());
-                return capacity;
-            }
-
-            AutoTraderHelpers.PrintDebugMessage(" - InventoryCapacity: " + PartyBase.MainParty.MobileParty.InventoryCapacity.ToString());
-            return PartyBase.MainParty.MobileParty.InventoryCapacity;
-        }
-        public int GetPlayerItemRosterSize()
-        {
-            AutoTraderHelpers.PrintDebugMessage(" - PartyItemRosterSize: " + PartyBase.MainParty.ItemRoster.Count.ToString());
-            return PartyBase.MainParty.MobileParty.ItemRoster.Count;
-        }
-        public int GetNumPartyMembers()
-        {
-            // TODO: Use "MobileParty" instead since 1.3?
-            AutoTraderHelpers.PrintDebugMessage(" - NumPartyMembers: " + PartyBase.MainParty.NumberOfAllMembers.ToString());
-            return PartyBase.MainParty.NumberOfAllMembers;
-        }
-        public int GetNumLivestockAnimals()
-        {
-            AutoTraderHelpers.PrintDebugMessage(" - NumLivestockAnimals: " + PartyBase.MainParty.ItemRoster.NumberOfLivestockAnimals.ToString());
-            return PartyBase.MainParty.MobileParty.ItemRoster.NumberOfLivestockAnimals;
-        }
-
-        // Foot soldiers a spare mount can mount - exactly what the vanilla speed model
-        // (DefaultPartySpeedCalculatingModel) uses for the mounted-footmen bonus.
-        public int GetNumFootTroops()
-        {
-            int count = PartyBase.MainParty.NumberOfMenWithoutHorse;
-            AutoTraderHelpers.PrintDebugMessage(" - NumFootTroops (menWithoutHorse): " + count.ToString());
-            return count;
-        }
 
         // --- Speed-aware mount trading: per-category inventory counts + upgrade reserves ---
 
-        private static int CountInventory(Func<ItemObject, bool> predicate)
-        {
-            int count = 0;
-            ItemRoster roster = PartyBase.MainParty.MobileParty.ItemRoster;
-            for (int i = 0; i < roster.Count; i++)
-            {
-                ItemRosterElement e = roster[i];
-                ItemObject item = e.EquipmentElement.Item;
-                if (item != null && predicate(item))
-                {
-                    count += e.Amount;
-                }
-            }
-            return count;
-        }
 
-        private static bool IsRegularMount(ItemObject item)
-        {
-            return item.HorseComponent != null && item.HorseComponent.IsMount
-                && item.ItemCategory != DefaultItemCategories.WarHorse
-                && item.ItemCategory != DefaultItemCategories.NobleHorse;
-        }
 
-        public int GetNumRegularRidingMounts()
-        {
-            return CountInventory(IsRegularMount);
-        }
 
-        public int GetNumWarMounts()
-        {
-            return CountInventory(item => item.HorseComponent != null && item.HorseComponent.IsMount
-                && item.ItemCategory == DefaultItemCategories.WarHorse);
-        }
 
-        public int GetNumNobleMounts()
-        {
-            return CountInventory(item => item.HorseComponent != null && item.HorseComponent.IsMount
-                && item.ItemCategory == DefaultItemCategories.NobleHorse);
-        }
 
-        public int GetNumPackAnimals()
-        {
-            return CountInventory(item => item.HorseComponent != null && item.HorseComponent.IsPackAnimal);
-        }
 
-        // Mounts of the given category that pending troop upgrades would consume.
-        private static int CountUpgradeDemand(ItemCategory category)
-        {
-            int count = 0;
-            TroopRoster roster = PartyBase.MainParty.MemberRoster;
-            for (int i = 0; i < roster.Count; i++)
-            {
-                CharacterObject c = roster.GetCharacterAtIndex(i);
-                if (c == null || c.IsHero)
-                {
-                    continue;
-                }
-                if (c.UpgradeRequiresItemFromCategory == category)
-                {
-                    count += roster.GetElementNumber(i);
-                }
-            }
-            return count;
-        }
 
-        public int GetWarMountUpgradeReserve()
-        {
-            return CountUpgradeDemand(DefaultItemCategories.WarHorse);
-        }
 
-        public int GetNobleMountUpgradeReserve()
-        {
-            return CountUpgradeDemand(DefaultItemCategories.NobleHorse);
-        }
 
-        // Current-item category checks (for CanBuy/CanSell), analogous to IsPackAnimal().
-        public bool IsWarMount()
-        {
-            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
-            return item != null && item.HorseComponent != null && item.HorseComponent.IsMount
-                && item.ItemCategory == DefaultItemCategories.WarHorse;
-        }
 
-        public bool IsNobleMount()
-        {
-            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
-            return item != null && item.HorseComponent != null && item.HorseComponent.IsMount
-                && item.ItemCategory == DefaultItemCategories.NobleHorse;
-        }
-        public int GetMerchantItemRosterSize()
-        {
-            if (_isCaravan)
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - MerchantItemRosterSize (Caravan): " + MobileParty.ConversationParty.ItemRoster.Count.ToString());
-                return MobileParty.ConversationParty.ItemRoster.Count;
-            }
-            AutoTraderHelpers.PrintDebugMessage(" - MerchantItemRosterSize (Town): " + Settlement.CurrentSettlement.ItemRoster.Count.ToString());
-            return Settlement.CurrentSettlement.ItemRoster.Count;
-        }
-        public List<string> GetLocks()
-        {
-            var locksEnumerable = Campaign.Current.GetCampaignBehavior<IViewDataTracker>().GetInventoryLocks();
-            if (locksEnumerable != null)
-            {
-                return locksEnumerable.ToList<string>();
-            }
-            return new List<string>();
-        }
 
-        public bool IsItemLocked()
-        {
-            var locks = GetLocks();
-            var itemStringId = _currentItemRosterElement.EquipmentElement.Item.StringId;
-            if (_currentItemRosterElement.EquipmentElement.ItemModifier != null)
-            {
-                itemStringId += _currentItemRosterElement.EquipmentElement.ItemModifier.StringId;
-            }
-            AutoTraderHelpers.PrintDebugMessage(" - IsLocked: " + locks.Contains(itemStringId).ToString());
-            return locks.Contains(itemStringId);
-        }
-        public bool IsItemTradeGood()
-        {
-            AutoTraderHelpers.PrintDebugMessage(" - IsTradeGood: " + _currentItemRosterElement.EquipmentElement.Item.IsTradeGood.ToString());
-            return _currentItemRosterElement.EquipmentElement.Item.IsTradeGood;
-        }
-        public int GetItemAmount()
-        {
-            try
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - ItemAmount: " + _currentItemRosterElement.Amount.ToString());
-                return _currentItemRosterElement.Amount;
-            }
-            catch (Exception e)
-            {
-                AutoTraderHelpers.PrintMessage("GetItemAmount crashed: " + e.ToString());
-                return 0;
-            }
-        }
-        public string GetItemName()
-        {
-            AutoTraderHelpers.PrintDebugMessage(" - ItemName: " + _currentItemRosterElement.EquipmentElement.Item.Name.ToString());
-            return _currentItemRosterElement.EquipmentElement.Item.Name.ToString();
-        }
-        public float GetItemWeight()
-        {
-            AutoTraderHelpers.PrintDebugMessage(" - ItemWeight: " + _currentItemRosterElement.EquipmentElement.Item.Weight.ToString());
-            return _currentItemRosterElement.EquipmentElement.Item.Weight;
-        }
 
-        /// <summary>
-        /// Whether the player smithed this weapon. Note this is NOT the same as having a weapon
-        /// design: ItemObject.IsCraftedWeapon is true for most vanilla weapons, because they are
-        /// defined from crafting pieces, so testing that would protect nearly the whole armoury.
-        /// </summary>
-        /// <summary>Tier of the current item as a plain number (Tier1 == 1).</summary>
-        public int GetItemTier()
-        {
-            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
-            return item == null ? 1 : (int)item.Tier + 1;
-        }
 
-        /// <summary>
-        /// The best weapon or armour tier the player and their companions are actually wearing.
-        /// Used to decide what counts as loot: gear below this is surplus, gear at or above it
-        /// might still be an upgrade for somebody and is kept.
-        /// </summary>
-        public int GetBestEquippedTier()
-        {
-            int best = 1;
-            foreach (Hero hero in Clan.PlayerClan.Heroes)
-            {
-                if (hero == null || !hero.IsAlive || hero.PartyBelongedTo != MobileParty.MainParty)
-                {
-                    continue;
-                }
 
-                Equipment equipment = hero.BattleEquipment;
-                if (equipment == null)
-                {
-                    continue;
-                }
 
-                for (int slot = 0; slot < (int)EquipmentIndex.NumEquipmentSetSlots; slot++)
-                {
-                    ItemObject item = equipment[(EquipmentIndex)slot].Item;
-                    if (item == null)
-                    {
-                        continue;
-                    }
-                    if (!AutoTraderHelpers.IsWeapon(item) && !AutoTraderHelpers.IsArmor(item))
-                    {
-                        continue;
-                    }
-                    int tier = (int)item.Tier + 1;
-                    if (tier > best)
-                    {
-                        best = tier;
-                    }
-                }
-            }
-            AutoTraderHelpers.PrintDebugMessage(" - BestEquippedTier: " + best.ToString());
-            return best;
-        }
-
-        public bool IsPlayerCraftedWeapon()
-        {
-            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
-            bool result = item != null && item.IsCraftedByPlayer;
-            AutoTraderHelpers.PrintDebugMessage(" - IsPlayerCraftedWeapon: " + result.ToString());
-            return result;
-        }
-        public bool IsPackAnimal()
-        {
-            var result = _currentItemRosterElement.EquipmentElement.Item.HorseComponent.IsPackAnimal;
-            AutoTraderHelpers.PrintDebugMessage(" - IsPackAnimal: " + result.ToString());
-            return result;
-        }
-        public bool IsItemGrain()
-        {
-            var result = _currentItemRosterElement.EquipmentElement.Item == DefaultItems.Grain;
-            AutoTraderHelpers.PrintDebugMessage(" - IsItemGrain: " + result.ToString());
-            return result;
-        }
-        public bool IsItemHardwood()
-        {
-            var result = _currentItemRosterElement.EquipmentElement.Item == DefaultItems.HardWood;
-            AutoTraderHelpers.PrintDebugMessage(" - IsItemHardwood: " + result.ToString());
-            return result;
-        }
-        public int GetPartyHardwoodIndex()
-        {
-            var result = PartyBase.MainParty.ItemRoster.FindIndexOfItem(DefaultItems.HardWood);
-            AutoTraderHelpers.PrintDebugMessage(" - HardwoodIndex: " + result.ToString());
-            return result;
-        }
-
-        /// <summary>
-        /// Days the party can keep marching on the food it carries - the same figure the game
-        /// shows the player. Scales with party size, unlike a fixed item count.
-        /// </summary>
-        public int GetFoodDaysRemaining()
-        {
-            int result = MobileParty.MainParty.GetNumDaysForFoodToLast();
-            AutoTraderHelpers.PrintDebugMessage(" - FoodDaysRemaining: " + result.ToString());
-            return result;
-        }
 
         // --- Warehouse: store goods the local merchant could not afford ------
 
-        /// <summary>True while trading in a town owned by the player clan.</summary>
-        public bool IsInOwnedTown()
-        {
-            Settlement settlement = Settlement.CurrentSettlement;
-            return settlement != null && settlement.IsTown && settlement.OwnerClan == Clan.PlayerClan;
-        }
 
-        /// <summary>Items currently held in this settlement's warehouse (the vanilla stash).</summary>
-        public int GetStashItemCount()
-        {
-            Settlement settlement = Settlement.CurrentSettlement;
-            if (settlement == null || settlement.Stash == null)
-            {
-                return 0;
-            }
 
-            int count = 0;
-            for (int i = 0; i < settlement.Stash.Count; i++)
-            {
-                count += settlement.Stash[i].Amount;
-            }
-            return count;
-        }
-
-        /// <summary>
-        /// Moves the whole remaining stack of the named item from the party into this town's
-        /// warehouse (the vanilla stash) and returns how many units were stored.
-        /// </summary>
-        public int DepositItemToStash(string itemName)
-        {
-            Settlement settlement = Settlement.CurrentSettlement;
-            if (settlement == null || settlement.Stash == null)
-            {
-                return 0;
-            }
-
-            ItemRoster partyRoster = PartyBase.MainParty.ItemRoster;
-            for (int i = 0; i < partyRoster.Count; i++)
-            {
-                ItemRosterElement element = partyRoster[i];
-                ItemObject item = element.EquipmentElement.Item;
-                if (item == null || item.Name.ToString() != itemName)
-                {
-                    continue;
-                }
-
-                int amount = element.Amount;
-                if (amount <= 0)
-                {
-                    return 0;
-                }
-
-                settlement.Stash.AddToCounts(element.EquipmentElement, amount);
-                partyRoster.AddToCounts(element.EquipmentElement, -amount);
-                AutoTraderHelpers.PrintDebugMessage(" - [warehouse] stored " + amount + "x " + itemName);
-                return amount;
-            }
-            return 0;
-        }
 
         // --- Smithing supply: cheap smeltable weapons as a hardwood source ---
 
-        public int GetHardwoodCount()
-        {
-            return PartyBase.MainParty.ItemRoster.GetItemNumber(DefaultItems.HardWood);
-        }
 
-        /// <summary>
-        /// Ore and ingots the party carries - the materials whose refining and smelting burns
-        /// charcoal, and therefore what the hardwood target should scale with.
-        /// </summary>
-        public int GetRefinableMaterialCount()
-        {
-            ItemRoster roster = PartyBase.MainParty.MobileParty.ItemRoster;
-            int count = 0;
-            for (int i = 0; i < roster.Count; i++)
-            {
-                ItemRosterElement e = roster[i];
-                ItemObject item = e.EquipmentElement.Item;
-                if (item == null)
-                {
-                    continue;
-                }
-                if (item == DefaultItems.IronOre
-                    || item == DefaultItems.IronIngot1 || item == DefaultItems.IronIngot2
-                    || item == DefaultItems.IronIngot3 || item == DefaultItems.IronIngot4
-                    || item == DefaultItems.IronIngot5 || item == DefaultItems.IronIngot6)
-                {
-                    count += e.Amount;
-                }
-            }
-            AutoTraderHelpers.PrintDebugMessage(" - RefinableMaterials: " + count.ToString());
-            return count;
-        }
 
-        public int GetHardwoodUnitValue()
-        {
-            return DefaultItems.HardWood.Value;
-        }
 
-        // Hardwood a weapon would yield when smelted (0 for non-weapons). Wood == index 7.
-        public int GetCurrentItemHardwoodSmeltYield()
-        {
-            ItemObject item = _currentItemRosterElement.EquipmentElement.Item;
-            if (item == null || !AutoTraderHelpers.IsWeapon(item))
-            {
-                return 0;
-            }
-            int[] output = Campaign.Current.Models.SmithingModel.GetSmeltingOutputForItem(item);
-            return output[(int)CraftingMaterials.Wood];
-        }
-        public float GetRosterElementWeight()
-        {
-            var result = _currentItemRosterElement.GetRosterElementWeight();
-            if (!_isBuying)
-                AutoTraderHelpers.PrintDebugMessage("GetRosterElementWeigth: Not buying!");
-            AutoTraderHelpers.PrintDebugMessage(" - RosterElementWeight: " + result.ToString());
-            return result;
-        }
-        private MerchantType GetMerchantType()
-        {
-            MerchantType merchantType;
-            if (_isCaravan)
-            {
-                merchantType = MerchantType.Caravan;
-
-                // Make sure its opened through conversation
-                if (MobileParty.ConversationParty == null)
-                {
-                    AutoTraderHelpers.PrintDebugMessage("Caravan trading but not through a conversation!");
-                }
-            }
-            else
-                merchantType = Settlement.CurrentSettlement.IsTown ? MerchantType.Town : MerchantType.Village;
-            return merchantType;
-        }
 
         public bool InitInventory()
         {
@@ -594,25 +149,6 @@ namespace AutoTrader
             _inventoryDisplayRefreshTicks--;
         }
 
-        public int GetMerchantGold()
-        {
-            var result = 0;
-            var merchantType = GetMerchantType();
-            switch (merchantType)
-            {
-                case MerchantType.Town:
-                    result = Settlement.CurrentSettlement.Town.Gold;
-                    break;
-                case MerchantType.Village:
-                    result = Settlement.CurrentSettlement.Village.Gold;
-                    break;
-                case MerchantType.Caravan:
-                    result = MobileParty.ConversationParty.PartyTradeGold;
-                    break;
-            }
-            AutoTraderHelpers.PrintDebugMessage(" - MerchantGold: " + result.ToString());
-            return result;
-        }
 
         private ItemRoster GetItemRoster()
         {
@@ -626,52 +162,7 @@ namespace AutoTrader
                 return PartyBase.MainParty.ItemRoster;
         }
 
-        public bool IsItemTierLowerThan(ItemObject.ItemTiers tier)
-        {
-            var result = _currentItemRosterElement.EquipmentElement.Item.Tier < tier;
-            AutoTraderHelpers.PrintDebugMessage(" - IsItemTierLowerThan: " + result.ToString());
-            return result;
-        }
 
-        public bool IsItemFiltered(List<string> doneItems = null)
-        {
-            ItemObject itemObject = _currentItemRosterElement.EquipmentElement.Item;
-            if (itemObject == null)
-            {
-                return true;
-            }
-
-            FilterItem item = new FilterItem(
-                _currentItemRosterElement.Amount,
-                IsItemLocked(),
-                doneItems != null && doneItems.Exists(x => x == itemObject.Name.ToString()),
-                AutoTraderHelpers.IsSmithingMaterial(itemObject),
-                AutoTraderHelpers.IsHorse(itemObject),
-                AutoTraderHelpers.IsArmor(itemObject),
-                AutoTraderHelpers.IsWeapon(itemObject),
-                AutoTraderHelpers.IsLivestock(itemObject),
-                AutoTraderHelpers.IsTradeGood(itemObject),
-                AutoTraderHelpers.IsConsumable(itemObject));
-
-            FilterSettings settings = new FilterSettings(
-                AutoTraderConfig.SellSmithingValue,
-                AutoTraderConfig.SpeedAwareMountsValue,
-                _isBuying ? AutoTraderConfig.BuyHorsesValue : AutoTraderConfig.SellHorsesValue,
-                _isBuying ? AutoTraderConfig.BuyArmorValue : AutoTraderConfig.SellArmorValue,
-                _isBuying ? AutoTraderConfig.BuyWeaponsValue : AutoTraderConfig.SellWeaponsValue,
-                AutoTraderConfig.BuySmeltablesForHardwoodValue,
-                _isBuying ? AutoTraderConfig.BuyLivestockValue : AutoTraderConfig.SellLivestockValue,
-                _isBuying ? AutoTraderConfig.BuyGoodsValue : AutoTraderConfig.SellGoodsValue,
-                _isBuying ? AutoTraderConfig.BuyConsumablesValue : AutoTraderConfig.SellConsumablesValue);
-
-            string reason;
-            bool filtered = ItemFilter.IsFiltered(item, settings, _isBuying, out reason);
-            if (filtered)
-            {
-                AutoTraderHelpers.PrintDebugMessage(" - filtered: " + reason);
-            }
-            return filtered;
-        }
 
         public void TransferItem()
         {
@@ -684,147 +175,16 @@ namespace AutoTrader
             AutoTraderHelpers.PrintDebugMessage(" - Transfer of item " + GetItemName() + " complete! (" + (_isBuying? "Buy" : "Sell") + ")");
         }
 
-        public int GetProjectedProfit(int buyoutPrice)
-        {
-            IPlayerTradeBehavior campaignBehavior = Campaign.Current.GetCampaignBehavior<IPlayerTradeBehavior>();
-            var result = campaignBehavior.GetProjectedProfit(_currentItemRosterElement, buyoutPrice);
-            AutoTraderHelpers.PrintDebugMessage(" - ProjectedProfit: " + result.ToString());
-            return result;
-        }
 
-        public int GetItemPrice()
-        {
-            var result = _inventoryLogic.GetItemPrice(_currentItemRosterElement.EquipmentElement, _isBuying);
-            AutoTraderHelpers.PrintDebugMessage(" - ItemPrice: " + result.ToString());
-            return result;
-        }
 
-        public float GetAveragePriceFallback()
-        {
-            var result = _currentItemRosterElement.EquipmentElement.Item.Value;
-            AutoTraderHelpers.PrintDebugMessage(" - AveragePriceFallback: " + result.ToString());
-            return result;
-        }
 
-        public int GetCostOfRosterElement()
-        {
-            var result = _inventoryLogic.GetCostOfItemRosterElement(_currentItemRosterElement, _isBuying ? InventoryLogic.InventorySide.OtherInventory : InventoryLogic.InventorySide.PlayerInventory);
-            AutoTraderHelpers.PrintDebugMessage(" - CostOfElement: " + result.ToString());
-            return result;
-        }
-        public float GetAveragePriceFactorItemCategory()
-        {
-            var result = _inventoryLogic.GetAveragePriceFactorItemCategory(_currentItemRosterElement.EquipmentElement.Item.ItemCategory);
-            AutoTraderHelpers.PrintDebugMessage(" - AveragePriceFactorItemCategory: " + result.ToString());
-            return result;
-        }
         
-        /// Towns
-        public int GetTownListSize()
-        {
-            var result = Town.AllTowns.Count();
-            return result;
-        }
 
-        private Town GetTownById(int townId)
-        {
-            return Town.AllTowns.ElementAt(townId);
-        }
 
-        public bool IsTownInRange(int townId, out float actualDistance)
-        {
-            var town = GetTownById(townId);
-            float estimatedLandRatio;
-            //TODO: take into consideration naval distance
-            actualDistance = Campaign.Current.Models.MapDistanceModel.GetDistance(MobileParty.MainParty, town.Settlement, false, MobileParty.NavigationType.Default, out estimatedLandRatio);
-            return actualDistance < (float)AutoTraderConfig.SearchRadiusValue;
-        }
-        public bool IsCurrentTown(int townId)
-        {
-            if (_isCaravan)
-                return false;
-            var town = GetTownById(townId);
-            var result = Settlement.CurrentSettlement.IsTown && town == Settlement.CurrentSettlement.Town;
-            AutoTraderHelpers.PrintDebugMessage(" - IsCurrentTown: " + result.ToString());
-            return result;
-        }
-        public float GetTownItemPrice(int townId, bool isSelling)
-        {
-            var town = GetTownById(townId);
-            var result = town.MarketData.GetPrice(_currentItemRosterElement.EquipmentElement.Item, PartyBase.MainParty.MobileParty, isSelling);
-            return result;
-        }
-        public float GetCurrentTownPriceFactor()
-        {
-            Town town = Settlement.CurrentSettlement.IsVillage ? Settlement.CurrentSettlement.Village.Bound.Town : Settlement.CurrentSettlement.Town;
-            var result = town.MarketData.GetPriceFactor(_currentItemRosterElement.EquipmentElement.Item.ItemCategory);
-            AutoTraderHelpers.PrintDebugMessage(" - CurrentTownPriceFactor: " + result.ToString());
-            return result;
-        }
 
-        /// Villages
-        public int GetVillageListSize()
-        {
-            var result = Village.All.Count();
-            return result;
-        }
 
-        private Village GetVillageById(int villageId)
-        {
-            return Village.All.ElementAt(villageId);
-        }
 
-        public bool IsVillageInRange(int villageId, out float actualDistance)
-        {
-            var village = GetVillageById(villageId);
-            float estimatedLandRatio;
 
-            // TODO: take into consideration naval distance
-            actualDistance = Campaign.Current.Models.MapDistanceModel.GetDistance(MobileParty.MainParty, village.Settlement, false, MobileParty.NavigationType.Default, out estimatedLandRatio);
-            return actualDistance < (float)AutoTraderConfig.SearchRadiusValue; ;
-        }
-        public bool IsCurrentVillage(int townId)
-        {
-            if (_isCaravan)
-                return false;
-            var village = GetVillageById(townId);
-            var result = Settlement.CurrentSettlement.IsVillage && village == Settlement.CurrentSettlement.Village;
-            AutoTraderHelpers.PrintDebugMessage(" - IsCurrentVillage: " + result.ToString());
-            return result;
-        }
-        public float GetVillageItemPrice(int townId, bool isSelling)
-        {
-            var town = GetVillageById(townId);
-            var result = town.MarketData.GetPrice(_currentItemRosterElement.EquipmentElement.Item, PartyBase.MainParty.MobileParty, isSelling, null);
-            return result;
-        }
-
-        /// Helper Wrapper
-        public bool IsArmor()
-        {
-            var itemRosterElement = _currentItemRosterElement;
-            return AutoTraderHelpers.IsArmor(itemRosterElement.EquipmentElement.Item);
-        }
-        public bool IsWeapon()
-        {
-            var itemRosterElement = _currentItemRosterElement;
-            return AutoTraderHelpers.IsWeapon(itemRosterElement.EquipmentElement.Item);
-        }
-        public bool IsHorse()
-        {
-            var itemRosterElement = _currentItemRosterElement;
-            return AutoTraderHelpers.IsHorse(itemRosterElement.EquipmentElement.Item);
-        }
-        public bool IsConsumable()
-        {
-            var itemRosterElement = _currentItemRosterElement;
-            return AutoTraderHelpers.IsConsumable(itemRosterElement.EquipmentElement.Item);
-        }
-        public bool IsLivestock()
-        {
-            var itemRosterElement = _currentItemRosterElement;
-            return AutoTraderHelpers.IsLivestock(itemRosterElement.EquipmentElement.Item);
-        }
 
         public void SetCurrentElementByName(string itemName)
         {
@@ -845,24 +205,6 @@ namespace AutoTrader
             }
         }
 
-        public List<string> GetPlayerItemRosterNames()
-        {
-            return PartyBase.MainParty.ItemRoster.Select(x => x.EquipmentElement.Item.Name.ToString()).ToList();
-        }
 
-        public int GetItemAmountInPlayerRoster()
-        {
-            int amount = 0;
-            foreach (ItemRosterElement element in PartyBase.MainParty.ItemRoster)
-            {
-                if (element.EquipmentElement.Item.Name.ToString().Equals(GetItemName()))
-                {
-                    amount = element.Amount;
-                    break;
-                }
-            }
-            AutoTraderHelpers.PrintDebugMessage("- amount in own inventory: " + amount.ToString());
-            return amount;
-        }
     }
 }
