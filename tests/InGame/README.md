@@ -19,4 +19,4 @@ then `AutoTraderSpeed.Scenarios/AutoTraderSpeed.Scenarios.csproj`, all with the 
 
 | Id | Class | Checks |
 |----|-------|--------|
-| `autotrader.health` | `HealthScenario` | `TradeBehavior` and `WarehouseBehavior` registered; the `town` menu has the `autotrader_town` option exactly once (index is logged, not asserted); the lines appended to `Configs\AutoTrader.log` between `@0` and `@<days>` contain none of the error markers `ERROR:`, `crashed:`, `Something terrible happened`, `: Error `, `Failed to` |
+| `autotrader.health` | `HealthScenario` | `TradeBehavior` and `WarehouseBehavior` registered; the `town` menu has the `autotrader_town` option exactly once and directly after vanilla's `trade` option (`menu.option-after-anchor`; the index is logged too); the lines appended to `Configs\AutoTrader.log` between `@0` and `@<days>` contain none of the error markers `ERROR:`, `crashed:`, `Something terrible happened`, `: Error `, `Failed to` |

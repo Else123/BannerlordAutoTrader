@@ -14,12 +14,13 @@ namespace AutoTraderSpeed.Scenarios
 {
     /// <summary>
     /// autotrader.health: AutoTrader registered its behaviors and its town menu option, exactly
-    /// once. Time stays stopped (no Days steps), so the scenario can also run as a health bracket.
+    /// once and directly after vanilla's "trade" option. Time stays stopped (no Days steps), so the scenario can also run as a health bracket.
     /// </summary>
     public sealed class HealthScenario : IScenario
     {
         private const string TownMenuId = "town";
         private const string TownOptionId = "autotrader_town";
+        private const string AnchorOptionId = "trade";
         private const string ModLogFileName = "AutoTrader.log";
 
         // Case-sensitive substrings of the error lines AutoTrader writes to its log:
@@ -56,9 +57,13 @@ namespace AutoTraderSpeed.Scenarios
                 int count = options.Count(o => o.IdString == TownOptionId);
                 ctx.Check("menu.town-" + TownOptionId, count == 1, "occurs exactly once", count + " time(s)");
 
-                // Logged only: the index depends on the order in which mods registered their options.
-                ctx.Log(TownOptionId + " index " + options.FindIndex(o => o.IdString == TownOptionId)
-                    + " of " + options.Count + " options");
+                int ownIndex = options.FindIndex(o => o.IdString == TownOptionId);
+                int anchorIndex = options.FindIndex(o => o.IdString == AnchorOptionId);
+                ctx.Log(TownOptionId + " index " + ownIndex + " of " + options.Count + " options");
+
+                ctx.Check("menu.option-after-anchor", anchorIndex >= 0 && ownIndex == anchorIndex + 1,
+                    TownOptionId + " directly after " + AnchorOptionId,
+                    TownOptionId + " at " + ownIndex + ", " + AnchorOptionId + " at " + anchorIndex);
             }
 
             CheckLogGrowth(ctx);
