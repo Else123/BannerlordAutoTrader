@@ -6,7 +6,6 @@ using AutoTrader;
 using AutoTrader.Warehouse;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.GameMenus;
-using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TestRig.Harness.Logic;
 
@@ -73,7 +72,8 @@ namespace AutoTraderSpeed.Scenarios
         // F-S6-6: the first call remembers the log length, a later call checks only the appended bytes.
         private void CheckLogGrowth(IScenarioContext ctx)
         {
-            string path = System.IO.Path.Combine(EngineFilePaths.ConfigsPath.Path, ModLogFileName);
+            // Absolute path; EngineFilePaths.ConfigsPath.Path alone is the relative "Configs".
+            string path = ModLogFile.Path;
             long length = GetLength(path);
 
             if (_logLengthAtStart == null)

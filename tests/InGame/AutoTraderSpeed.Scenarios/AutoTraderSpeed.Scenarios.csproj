@@ -80,6 +80,11 @@
   <ItemGroup>
     <Compile Include="ScenariosSubModule.cs" />
     <Compile Include="HealthScenario.cs" />
+    <Compile Include="ModLogFile.cs" />
+    <Compile Include="DeltaText.cs" />
+    <Compile Include="TradeStateBackup.cs" />
+    <Compile Include="WarehouseConsignScenario.cs" />
+    <Compile Include="TownTradeScenario.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SubModule.xml">
