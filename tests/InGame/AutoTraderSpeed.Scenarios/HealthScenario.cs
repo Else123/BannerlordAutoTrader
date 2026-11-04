@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AutoTrader;
+using AutoTrader.Menu;
 using AutoTrader.Warehouse;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.GameMenus;
@@ -12,14 +13,11 @@ using TestRig.Harness.Logic;
 namespace AutoTraderSpeed.Scenarios
 {
     /// <summary>
-    /// autotrader.health: AutoTrader registered its behaviors and its town menu option, exactly
+    /// autotrader.health: AutoTrader registered its behaviors and its town/village/port menu options, exactly
     /// once and directly after vanilla's "trade" option. Time stays stopped (no Days steps), so the scenario can also run as a health bracket.
     /// </summary>
     public sealed class HealthScenario : IScenario
     {
-        private const string TownMenuId = "town";
-        private const string TownOptionId = "autotrader_town";
-        private const string AnchorOptionId = "trade";
         private const string ModLogFileName = "AutoTrader.log";
 
         // Case-sensitive substrings of the error lines AutoTrader writes to its log:
@@ -48,25 +46,56 @@ namespace AutoTraderSpeed.Scenarios
 
             // AutoTrader registers no GameModel, so there is no active-model check.
 
-            GameMenu townMenu = Campaign.Current.GameMenuManager.GetGameMenu(TownMenuId);
-            ctx.Check("menu.town-exists", townMenu != null, "game menu '" + TownMenuId + "' exists", townMenu != null ? "ok" : "null");
-            if (townMenu != null)
+            // Town and village always exist. The port menus only exist with the NavalDLC (port_menu) and
+            // in the naval story line (naval_storyline_virtualport); where nobody built the menu we add no
+            // option, see CheckOptionPlacement.
+            foreach (MenuOptionAnchor anchor in MenuOptionAnchors.All)
             {
-                List<GameMenuOption> options = townMenu.MenuOptions.ToList();
-                int count = options.Count(o => o.IdString == TownOptionId);
-                ctx.Check("menu.town-" + TownOptionId, count == 1, "occurs exactly once", count + " time(s)");
-
-                int ownIndex = options.FindIndex(o => o.IdString == TownOptionId);
-                int anchorIndex = options.FindIndex(o => o.IdString == AnchorOptionId);
-                ctx.Log(TownOptionId + " index " + ownIndex + " of " + options.Count + " options");
-
-                ctx.Check("menu.option-after-anchor", anchorIndex >= 0 && ownIndex == anchorIndex + 1,
-                    TownOptionId + " directly after " + AnchorOptionId,
-                    TownOptionId + " at " + ownIndex + ", " + AnchorOptionId + " at " + anchorIndex);
+                CheckOptionPlacement(ctx, anchor);
             }
 
             CheckLogGrowth(ctx);
             yield break;
+        }
+
+        private static void CheckOptionPlacement(IScenarioContext ctx, MenuOptionAnchor anchor)
+        {
+            // Check ids: the town keeps the historical "menu.option-after-anchor" (README), the others carry the menu id.
+            bool isTown = anchor == MenuOptionAnchors.Town;
+            string prefix = isTown ? "menu.town" : "menu." + anchor.MenuId;
+            string afterAnchorCheck = isTown ? "menu.option-after-anchor" : prefix + "-after-anchor";
+
+            // GetGameMenu can return an empty placeholder (any AddGameMenuOption on an unknown id creates
+            // one), so "exists" means IsReady, i.e. someone initialized the menu.
+            GameMenu menu = Campaign.Current.GameMenuManager.GetGameMenu(anchor.MenuId);
+            bool built = menu != null && menu.IsReady;
+            bool required = isTown || anchor == MenuOptionAnchors.Village;
+            if (required)
+            {
+                // Reported on success too, so runs stay comparable by check id.
+                ctx.Check(prefix + "-exists", built, "game menu '" + anchor.MenuId + "' exists", built ? "exists" : "missing");
+            }
+
+            if (!built)
+            {
+                if (!required)
+                {
+                    ctx.Log("menu '" + anchor.MenuId + "' not built (no NavalDLC / story line), placement not checked");
+                }
+
+                return;
+            }
+
+            List<GameMenuOption> options = menu.MenuOptions.ToList();
+            int count = options.Count(o => o.IdString == anchor.OptionId);
+            int ownIndex = options.FindIndex(o => o.IdString == anchor.OptionId);
+            int anchorIndex = options.FindIndex(o => o.IdString == anchor.AnchorOptionId);
+            ctx.Log(anchor.OptionId + " index " + ownIndex + " of " + options.Count + " options");
+
+            ctx.Check(prefix + "-" + anchor.OptionId, count == 1, "occurs exactly once", count + " time(s)");
+            ctx.Check(afterAnchorCheck, anchorIndex >= 0 && ownIndex == anchorIndex + 1,
+                anchor.OptionId + " directly after " + anchor.AnchorOptionId,
+                anchor.OptionId + " at " + ownIndex + ", " + anchor.AnchorOptionId + " at " + anchorIndex);
         }
 
         // F-S6-6: the first call remembers the log length, a later call checks only the appended bytes.

@@ -46,6 +46,15 @@ namespace AutoTrader
 			}
 		}
 
+		public override void OnAfterGameInitializationFinished(Game game, object starterObject)
+		{
+			// Runs once per game after all OnSessionLaunched/OnAfterSessionLaunched listeners, see TradeBehavior.AddMenuOptions.
+			if (game.GameType is Campaign && starterObject is CampaignGameStarter starter)
+			{
+				Campaign.Current.GetCampaignBehavior<TradeBehavior>()?.AddMenuOptions(starter);
+			}
+		}
+
 		protected override void OnApplicationTick(float dt)
 		{
 			if (Game.Current != null)

@@ -28,6 +28,7 @@
     <Compile Include="..\..\AutoTrader\src\Trading\BuyGate.cs" Link="Trading\BuyGate.cs" />
     <Compile Include="..\..\AutoTrader\src\Trading\ItemFilter.cs" Link="Trading\ItemFilter.cs" />
     <Compile Include="..\..\AutoTrader\src\Menu\MenuPlacement.cs" Link="Menu\MenuPlacement.cs" />
+    <Compile Include="..\..\AutoTrader\src\Menu\MenuOptionAnchors.cs" Link="Menu\MenuOptionAnchors.cs" />
   </ItemGroup>
 
 </Project>

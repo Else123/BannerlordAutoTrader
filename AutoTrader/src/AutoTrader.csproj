@@ -189,6 +189,7 @@
     <Compile Include="AutoTraderMcmSettings.cs" />
     <Compile Include="ILogicConnector.cs" />
     <Compile Include="Menu\MenuPlacement.cs" />
+    <Compile Include="Menu\MenuOptionAnchors.cs" />
     <Compile Include="Smithing\HardwoodTarget.cs" />
     <Compile Include="Trading\SellGate.cs" />
     <Compile Include="Trading\BuyGate.cs" />

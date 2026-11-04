@@ -24,9 +24,7 @@ namespace AutoTrader
         public override void RegisterEvents()
         {
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, new Action<CampaignGameStarter>(this.OnGameLoaded));
-            // MbEvent runs listeners in reverse registration order, so OnSessionLaunched listeners of a
-            // mod run BEFORE vanilla builds the "town" menu. The town option needs that menu to exist.
-            CampaignEvents.OnAfterSessionLaunchedEvent.AddNonSerializedListener(this, new Action<CampaignGameStarter>(this.AddTownMenuOption));
+            // The menu options are added from AutoTraderSubModule.OnAfterGameInitializationFinished, see AddMenuOptions.
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -75,45 +73,46 @@ namespace AutoTrader
         {
             if (campaignGameStarter != null)
             {
-                campaignGameStarter.AddGameMenuOption("village", "autotrader_village", new TextObject("{=ATTrade}Automatically trade wares", null).ToString(),
-                    new GameMenuOption.OnConditionDelegate(this.AutoTradeGoodsVillageCondition),
-                    new GameMenuOption.OnConsequenceDelegate(this.AutoTradeGoodsConsequence), false, 4, false);
-
                 // Caravan
                 campaignGameStarter.AddPlayerLine("caravan_buy_products", "caravan_talk",
                     "close_window", "{=ATCaravan}I'd like to inspect your wares. (Autotrade)", 
                     new ConversationSentence.OnConditionDelegate(this.AutoTradeGoodsCaravanCondition),
                     new ConversationSentence.OnConsequenceDelegate(this.AutoTradeGoodsCaravanConsequence), 100, null, null);
-
-                // Naval Campaign
-                campaignGameStarter.AddGameMenuOption("naval_storyline_virtualport", "autotrade_naval_campaign", "{=ATTrade}Automatically trade wares", 
-                    new GameMenuOption.OnConditionDelegate(this.AutoTradeNavalCampaignCondition), new GameMenuOption.OnConsequenceDelegate(this.AutoTradeGoodsConsequence), false, 4, false, null);
-
-                // Ports
-                campaignGameStarter.AddGameMenuOption("port_menu", "autotrade_port", "{=ATTrade}Automatically trade wares",
-                    new GameMenuOption.OnConditionDelegate(this.AutoTradeNavalCampaignCondition), new GameMenuOption.OnConsequenceDelegate(this.AutoTradeGoodsConsequence), false, 4, false, null);
             }
         }
 
-        private void AddTownMenuOption(CampaignGameStarter campaignGameStarter)
+        /// <summary>
+        /// Adds the AutoTrader option to the town, village, port and naval story port menus, each right
+        /// behind vanilla's "trade" option (looked up, not a fixed index: an index is a raw List.Insert into
+        /// whatever the menu holds at that moment). Menus that are not built yet are skipped, e.g. the
+        /// port menus without the NavalDLC.
+        /// Must run after every OnAfterSessionLaunched listener has built its menus (NavalDLC builds
+        /// "port_menu" there, and mods listening on that event run in reverse load order). Campaign calls
+        /// GameManager.OnAfterGameInitializationFinished once per game, right after OnSessionStart, which
+        /// invokes both session events, so AutoTraderSubModule calls this from that hook.
+        /// </summary>
+        public void AddMenuOptions(CampaignGameStarter campaignGameStarter)
         {
-            if (campaignGameStarter == null)
+            AddMenuOption(campaignGameStarter, MenuOptionAnchors.Town, this.AutoTradeGoodsCondition);
+            AddMenuOption(campaignGameStarter, MenuOptionAnchors.Village, this.AutoTradeGoodsVillageCondition);
+            AddMenuOption(campaignGameStarter, MenuOptionAnchors.NavalVirtualPort, this.AutoTradeNavalCampaignCondition);
+            AddMenuOption(campaignGameStarter, MenuOptionAnchors.Port, this.AutoTradeNavalCampaignCondition);
+        }
+
+        private void AddMenuOption(CampaignGameStarter campaignGameStarter, MenuOptionAnchor anchor, GameMenuOption.OnConditionDelegate condition)
+        {
+            // GetPresumedGameMenu would create an empty placeholder for a menu nobody built; don't.
+            GameMenu menu = Campaign.Current.GameMenuManager.GetGameMenu(anchor.MenuId);
+            if (menu == null || !menu.IsReady)
             {
                 return;
             }
 
-            // Placed right behind vanilla's "trade" option, found by lookup instead of a fixed index.
-            // This must run after PlayerTownVisitCampaignBehavior built the "town" menu, which is why
-            // it listens on OnAfterSessionLaunched (see RegisterEvents). A fixed index (the old 4) is
-            // a raw List.Insert into whatever the menu holds at that moment, so it drifts with
-            // registration order. If the anchor is missing the option goes in front of "town_leave"
-            // (an index of -1 would append behind it), or at the end if that is missing too.
-            // GetPresumedGameMenu never returns null (it creates an empty menu).
-            GameMenu townMenu = campaignGameStarter.GetPresumedGameMenu("town");
-            int index = MenuPlacement.IndexAfter(townMenu.MenuOptions.Select(option => option.IdString), "trade", "town_leave");
-            campaignGameStarter.AddGameMenuOption("town", "autotrader_town", new TextObject("{=ATTrade}Automatically trade wares", null).ToString(),
-                new GameMenuOption.OnConditionDelegate(this.AutoTradeGoodsCondition),
-                new GameMenuOption.OnConsequenceDelegate(this.AutoTradeGoodsConsequence), false, index, false);
+            // If the anchor is missing the option goes in front of the menu's leave option (an index of -1
+            // would append behind it), or at the end if that is missing too.
+            int index = MenuPlacement.IndexAfter(menu.MenuOptions.Select(option => option.IdString), anchor.AnchorOptionId, anchor.FallbackBeforeOptionId);
+            campaignGameStarter.AddGameMenuOption(anchor.MenuId, anchor.OptionId, new TextObject("{=ATTrade}Automatically trade wares", null).ToString(),
+                condition, new GameMenuOption.OnConsequenceDelegate(this.AutoTradeGoodsConsequence), false, index, false);
         }
 
         private bool AutoTradeNavalCampaignCondition(MenuCallbackArgs args)
