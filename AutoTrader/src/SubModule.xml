@@ -9,7 +9,7 @@
 	<DependedModules>
     <DependedModule
       Id="Native"
-      DependentVersion="v1.4.6"
+      DependentVersion="v1.4.8"
       Optional="false" />
     <DependedModule
       Id="Bannerlord.MBOptionScreen"

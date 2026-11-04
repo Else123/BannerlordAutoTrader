@@ -11,8 +11,8 @@
     /// </summary>
     public static class AutoTraderConfig
     {
-        // This fork is built and tested against v1.4.7 (War Sails).
-        public static string AutoTraderGameVersion { get; } = "v1.4.7";
+        // This fork is built and tested against v1.4.8 (War Sails).
+        public static string AutoTraderGameVersion { get; } = "v1.4.8";
 
         public static int BuyThresholdValue { get; set; } = 90;
         public static int SellThresholdValue { get; set; } = 100;
